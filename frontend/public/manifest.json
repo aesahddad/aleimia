@@ -1,0 +1,20 @@
+{
+  "name": "العينية - منصة العرض ثلاثي الأبعاد",
+  "short_name": "العينية",
+  "description": "منصة عرض المنتجات ثلاثية الأبعاد - متاجر، إعلانات، حراج",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#e0e5ec",
+  "theme_color": "#1a237e",
+  "orientation": "portrait-primary",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

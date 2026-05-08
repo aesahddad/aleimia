@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.production
+logs/
+*.tar.gz
+*.zip
+db_data/
+frontend-vanilla/
+icons/
+"???? ???? 2026-01-26 175155.png"

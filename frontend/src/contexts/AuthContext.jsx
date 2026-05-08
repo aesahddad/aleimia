@@ -1,0 +1,48 @@
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import client from '../api/client';
+
+const AuthContext = createContext(null);
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aleinia_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+
+  const saveUser = (u) => {
+    setUser(u);
+    if (u) localStorage.setItem('aleinia_user', JSON.stringify(u));
+    else localStorage.removeItem('aleinia_user');
+  };
+
+  const login = async (email, password) => {
+    const { data } = await client.post('/auth/login', { email, password });
+    localStorage.setItem('aleinia_token', data.token);
+    localStorage.setItem('aleinia_refreshToken', data.refreshToken);
+    saveUser(data.user);
+    return data.user;
+  };
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('aleinia_token');
+    localStorage.removeItem('aleinia_refreshToken');
+    saveUser(null);
+  }, []);
+
+  const switchRole = useCallback(() => {
+    if (!user) return;
+    if (!user.realRole) user.realRole = user.role;
+    const newRole = user.role === 'client' ? user.realRole : 'client';
+    saveUser({ ...user, role: newRole });
+  }, [user]);
+
+  return (
+    <AuthContext.Provider value={{ user, login, logout, switchRole }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export const useAuth = () => useContext(AuthContext);

@@ -1,0 +1,42 @@
+[
+    {
+        "id": "platform",
+        "label": "الرئيسية",
+        "type": "module",
+        "visible": true,
+        "order": 1,
+        "icon": "fas fa-home"
+    },
+    {
+        "id": "haraj",
+        "label": "حراج",
+        "type": "module",
+        "visible": true,
+        "order": 2,
+        "icon": "fas fa-car"
+    },
+    {
+        "id": "estate",
+        "label": "عقار",
+        "type": "module",
+        "visible": true,
+        "order": 3,
+        "icon": "fas fa-building"
+    },
+    {
+        "id": "freelancer",
+        "label": "خدمات",
+        "type": "module",
+        "visible": true,
+        "order": 4,
+        "icon": "fas fa-laptop"
+    },
+    {
+        "id": "jobs",
+        "label": "وظائف",
+        "type": "module",
+        "visible": true,
+        "order": 5,
+        "icon": "fas fa-briefcase"
+    }
+]

@@ -1,0 +1,47 @@
+[
+  {
+    "id": "home",
+    "label": "الرئيسية",
+    "icon": "fas fa-home",
+    "visible": true,
+    "order": 1
+  },
+  {
+    "id": "haraj",
+    "label": "حراج",
+    "icon": "fas fa-car",
+    "visible": true,
+    "order": 2
+  },
+  {
+    "id": "estate",
+    "label": "عقار",
+    "icon": "fas fa-building",
+    "visible": true,
+    "order": 3
+  },
+  {
+    "id": "freelancer",
+    "label": "فريلانسر",
+    "icon": "fas fa-laptop-code",
+    "visible": true,
+    "order": 4
+  },
+  {
+    "id": "jobs",
+    "label": "وظائف",
+    "icon": "fas fa-briefcase",
+    "visible": true,
+    "order": 5
+  },
+  {
+    "id": "werash",
+    "label": "ورش ",
+    "subtitle": "اعلانات ورش النجارة - الحدادة - وغيرها من الاعمال المهنية",
+    "type": "module",
+    "icon": "fas fa-star",
+    "content": null,
+    "visible": true,
+    "order": 6
+  }
+]
