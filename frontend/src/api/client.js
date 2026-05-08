@@ -21,8 +21,9 @@ client.interceptors.response.use(
         const refresh = localStorage.getItem('aleinia_refreshToken');
         if (!refresh) throw new Error('No refresh token');
         const { data } = await axios.post('/api/auth/refresh', { refreshToken: refresh });
-        localStorage.setItem('aleinia_token', data.accessToken);
-        original.headers.Authorization = `Bearer ${data.accessToken}`;
+        localStorage.setItem('aleinia_token', data.token);
+        localStorage.setItem('aleinia_refreshToken', data.refreshToken);
+        original.headers.Authorization = `Bearer ${data.token}`;
         return client(original);
       } catch {
         localStorage.removeItem('aleinia_token');
@@ -34,7 +35,7 @@ client.interceptors.response.use(
   }
 );
 
-export const fetchSettings = () => client.get('/platform/status').then(r => r.data);
+export const fetchSettings = () => client.get('/status').then(r => r.data);
 export const fetchTabs = () => client.get('/tabs').then(r => r.data);
 export const fetchStores = (params) => client.get('/stores', { params }).then(r => r.data);
 export const fetchStore = (id) => client.get(`/stores/${id}`).then(r => r.data);

@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
+import { MERCHANT_TABS } from '../pages/Merchant';
 
 const PAGE_LINKS = {
   '/': [
@@ -26,6 +27,7 @@ const PAGE_LINKS = {
     { label: '🛡️ الرقابة', path: '/admin?tab=moderation' },
     { label: '⚙️ الإعدادات', path: '/admin?tab=settings' },
     { label: '🗑️ المحذوفات', path: '/admin?tab=trash' },
+    { label: '💎 الاشتراكات', path: '/admin?tab=subscriptions' },
     { label: '🔑 الصلاحيات', path: '/admin?tab=roles' },
   ],
   '/merchant': [
@@ -68,21 +70,6 @@ export default function Sidebar({ store, product, products, onSelectProduct, onA
     return (
       <aside className="sidebar">
         <div className="sidebar-scroll">
-          <div className="sidebar-section">
-            <div className="sidebar-header">
-              <h2>{store.name}</h2>
-              <span className="sidebar-badge">{store.category || 'متجر'}</span>
-            </div>
-            {store.branding?.logo && (
-              <div className="sidebar-logo-wrap">
-                <img src={store.branding.logo} alt={store.name} className="sidebar-logo" />
-              </div>
-            )}
-            {store.description && (
-              <p className="sidebar-desc">{store.description}</p>
-            )}
-          </div>
-
           {product.videoUrl && (
             <div className="sidebar-section">
               <div className="sidebar-video">
@@ -119,131 +106,119 @@ export default function Sidebar({ store, product, products, onSelectProduct, onA
               )) : <div className="sidebar-empty">لا توجد مواصفات</div>}
             </div>
           </div>
-
-          <div className="sidebar-section">
-            <h3 className="sidebar-section-title">المنتجات</h3>
-            <div className="sidebar-products">
-              {products.map(p => (
-                <div key={p._id} className={`sidebar-product ${p._id === product._id ? 'active' : ''}`} onClick={() => onSelectProduct(p)}>
-                  {p.imageUrl && <img src={p.imageUrl} alt={p.name} />}
-                  <div className="sidebar-product-info">
-                    <div className="sidebar-product-name">{p.name}</div>
-                    {p.price && <div className="sidebar-product-price">{p.price} ر.س</div>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="sidebar-section">
-            <h3 className="sidebar-section-title">التقييمات</h3>
-            <div className="sidebar-reviews">
-              {product.reviews?.length > 0 ? product.reviews.map((r, i) => (
-                <div key={i} className="review-item">
-                  <div className="review-header">
-                    <span className="review-user">{r.user}</span>
-                    <span className="review-stars">{'★'.repeat(r.rating || 5)}</span>
-                  </div>
-                  <p className="review-text">{r.comment}</p>
-                </div>
-              )) : <div className="sidebar-empty">لا توجد تقييمات بعد</div>}
-            </div>
-          </div>
-
-          <div className="sidebar-section">
-            <button className="sidebar-add-btn" onClick={onAddToCart}>
-              🛒 إضافة للسلة — {product.price || 0} ر.س
-            </button>
-          </div>
-
-          <div className="sidebar-section">
-            <button className="sidebar-whatsapp-btn" onClick={() => window.open(`https://wa.me/${store.financial?.whatsapp || ''}`, '_blank')}>
-              💬 تواصل مع المتجر
-            </button>
-          </div>
         </div>
       </aside>
     );
   }
 
-  return (
-    <aside className="sidebar">
-      <div className="sidebar-scroll">
-        <div className="sidebar-section sidebar-hero">
-          <div className="sidebar-logo-wrap">
-            <img src="/logo.png" alt="العينية" className="sidebar-logo" />
-          </div>
-          <div className="sidebar-slogan">
-            <h2>فهرس العينية</h2>
-            <p>نعطي لحلمك بعداً آخر</p>
-          </div>
-        </div>
+  const base = '/' + location.pathname.split('/')[1];
 
-        {(() => {
-          const base = '/' + location.pathname.split('/')[1];
-          const videoUrl = base === '/plans' ? settings?.promoVideoPlansUrl : settings?.promoVideoUrl;
-          const label = base === '/plans' ? 'فيديو الاشتراكات' : 'فيديو ترويجي';
-          return (
-            <div className="sidebar-section sidebar-promo-video">
-              {videoUrl ? (
-                videoUrl.includes('youtube') || videoUrl.includes('youtu.be') ? (
-                  <iframe src={`https://www.youtube-nocookie.com/embed/${extractYoutubeId(videoUrl)}`} allowFullScreen title={label} />
-                ) : (
-                  <video controls playsInline><source src={videoUrl} /></video>
-                )
-              ) : (
-                <div className="sidebar-promo-placeholder">
-                  <span>📹</span>
-                  <p>مساحة الفيديو الدعائي<br /><small>يمكنك التحكم به من لوحة الإدارة</small></p>
-                </div>
-              )}
+  // --- HOME PAGE SIDEBAR ---
+  if (base === '/') {
+    return (
+      <aside className="sidebar">
+        <div className="sidebar-scroll">
+          <div className="sidebar-section sidebar-hero">
+            <div className="sidebar-logo-wrap">
+              <img src="/logo.png" alt="العينية" className="sidebar-logo" />
             </div>
-          );
-        })()}
+            <div className="sidebar-slogan">
+              <h2>فهرس العينية</h2>
+              <p>نعطي لحلمك بعداً آخر</p>
+            </div>
+          </div>
 
-        {location.pathname !== '/plans' && (
+          <div className="sidebar-section sidebar-promo-video">
+            {settings?.promoVideoUrl ? (
+              settings.promoVideoUrl.includes('youtube') || settings.promoVideoUrl.includes('youtu.be') ? (
+                <iframe src={`https://www.youtube-nocookie.com/embed/${extractYoutubeId(settings.promoVideoUrl)}`} allowFullScreen title="فيديو ترويجي" />
+              ) : (
+                <video controls playsInline><source src={settings.promoVideoUrl} /></video>
+              )
+            ) : (
+              <div className="sidebar-promo-placeholder">
+                <span>📹</span>
+                <p>مساحة الفيديو الدعائي<br /><small>يمكنك التحكم به من لوحة الإدارة</small></p>
+              </div>
+            )}
+          </div>
+
           <div className="sidebar-section">
             <button className="sidebar-action-btn primary" onClick={() => closeAndNav('/plans')}>
               💎 خطط الاشتراك
             </button>
           </div>
-        )}
 
-        {(() => {
-          const base = '/' + location.pathname.split('/')[1];
-          let links = PAGE_LINKS[base];
-          if (!links) {
-            if (base === '/merchant')
-              links = [{ label: '🏪 لوحة التاجر', path: '/merchant' }];
-            else
-              links = PAGE_LINKS['/'];
-          }
-          const currentQuery = location.search.replace('?', '');
-          links = links.filter(l => {
-            const linkBase = l.path.split('?')[0];
-            const linkQuery = l.path.split('?')[1] || '';
-            if (linkBase !== location.pathname) return true;
-            if (linkQuery === currentQuery) return false;
-            if (!linkQuery && !currentQuery) return false;
-            return true;
-          });
-          if (links.length === 0) return null;
-          return (
+          {user ? (
             <div className="sidebar-section">
-              {links.map(link => (
-                <button key={link.path + link.label} className="sidebar-action-btn" onClick={() => closeAndNav(link.path)} style={{ marginTop: 4 }}>
-                  {link.label}
+              <h3 className="sidebar-section-title">مرحباً، {user.username || user.email}</h3>
+              <button className="sidebar-action-btn" onClick={() => closeAndNav('/')}>
+                🏠 الرئيسية
+              </button>
+              <button className="sidebar-action-btn" onClick={() => closeAndNav('/cart')}>
+                🛒 السلة
+              </button>
+              {(user.role === 'admin' || user.role === 'merchant') && (
+                <button className="sidebar-action-btn" onClick={() => closeAndNav('/merchant')}>
+                  🏪 لوحة التاجر
                 </button>
-              ))}
+              )}
+              {user.role === 'admin' && (
+                <button className="sidebar-action-btn" onClick={() => closeAndNav('/admin')}>
+                  🛡️ لوحة الإدارة
+                </button>
+              )}
+              <button className="sidebar-action-btn logout" onClick={logout}>
+                🚪 تسجيل الخروج
+              </button>
             </div>
-          );
-        })()}
+          ) : (
+            <div className="sidebar-section">
+              <button className="sidebar-action-btn primary" onClick={() => closeAndNav('/auth?mode=login')}>
+                🔐 تسجيل الدخول
+              </button>
+              <button className="sidebar-action-btn" onClick={() => closeAndNav('/auth?mode=register')}>
+                🚀 افتح متجرك الآن
+              </button>
+            </div>
+          )}
+        </div>
+      </aside>
+    );
+  }
 
-        {(() => {
-          const base = '/' + location.pathname.split('/')[1];
-          const info = PAGE_INFO[base];
-          if (!info) return null;
-          return (
+  // --- PLANS PAGE SIDEBAR ---
+  if (base === '/plans') {
+    const info = PAGE_INFO['/plans'];
+    return (
+      <aside className="sidebar">
+        <div className="sidebar-scroll">
+          <div className="sidebar-section sidebar-hero">
+            <div className="sidebar-logo-wrap">
+              <img src="/logo.png" alt="العينية" className="sidebar-logo" />
+            </div>
+            <div className="sidebar-slogan">
+              <h2>فهرس العينية</h2>
+              <p>نعطي لحلمك بعداً آخر</p>
+            </div>
+          </div>
+
+          <div className="sidebar-section sidebar-promo-video">
+            {settings?.promoVideoPlansUrl ? (
+              settings.promoVideoPlansUrl.includes('youtube') || settings.promoVideoPlansUrl.includes('youtu.be') ? (
+                <iframe src={`https://www.youtube-nocookie.com/embed/${extractYoutubeId(settings.promoVideoPlansUrl)}`} allowFullScreen title="فيديو الاشتراكات" />
+              ) : (
+                <video controls playsInline><source src={settings.promoVideoPlansUrl} /></video>
+              )
+            ) : (
+              <div className="sidebar-promo-placeholder">
+                <span>📹</span>
+                <p>مساحة الفيديو الدعائي<br /><small>يمكنك التحكم به من لوحة الإدارة</small></p>
+              </div>
+            )}
+          </div>
+
+          {info && (
             <div className="sidebar-section sidebar-page-info">
               <h3 className="sidebar-section-title">{info.title}</h3>
               {info.items.map((item, i) => (
@@ -253,28 +228,123 @@ export default function Sidebar({ store, product, products, onSelectProduct, onA
                 </div>
               ))}
             </div>
-          );
-        })()}
+          )}
+
+          {user ? (
+            <div className="sidebar-section">
+              <h3 className="sidebar-section-title">مرحباً، {user.username || user.email}</h3>
+              <button className="sidebar-action-btn" onClick={() => closeAndNav('/')}>
+                🏠 الرئيسية
+              </button>
+              <button className="sidebar-action-btn" onClick={() => closeAndNav('/cart')}>
+                🛒 السلة
+              </button>
+              {(user.role === 'admin' || user.role === 'merchant') && (
+                <button className="sidebar-action-btn" onClick={() => closeAndNav('/merchant')}>
+                  🏪 لوحة التاجر
+                </button>
+              )}
+              {user.role === 'admin' && (
+                <button className="sidebar-action-btn" onClick={() => closeAndNav('/admin')}>
+                  🛡️ لوحة الإدارة
+                </button>
+              )}
+              <button className="sidebar-action-btn logout" onClick={logout}>
+                🚪 تسجيل الخروج
+              </button>
+            </div>
+          ) : (
+            <div className="sidebar-section">
+              <button className="sidebar-action-btn primary" onClick={() => closeAndNav('/auth?mode=login')}>
+                🔐 تسجيل الدخول
+              </button>
+              <button className="sidebar-action-btn" onClick={() => closeAndNav('/auth?mode=register')}>
+                🚀 افتح متجرك الآن
+              </button>
+            </div>
+          )}
+        </div>
+      </aside>
+    );
+  }
+
+  // --- ADMIN PAGE SIDEBAR ---
+  if (base === '/admin' && user?.role === 'admin') {
+    const adminLinks = PAGE_LINKS['/admin'];
+    const currentQuery = location.search.replace('?', '');
+    return (
+      <aside className="sidebar">
+        <div className="sidebar-scroll">
+          <div className="sidebar-section">
+            <h3 className="sidebar-section-title">لوحة الإدارة</h3>
+            {adminLinks.map(link => {
+              const linkQuery = link.path.split('?')[1] || '';
+              if (linkQuery === currentQuery) return null;
+              return (
+                <button key={link.path} className="sidebar-action-btn" onClick={() => closeAndNav(link.path)} style={{ marginTop: 4 }}>
+                  {link.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
+  // --- MERCHANT PAGE SIDEBAR ---
+  if (base === '/merchant') {
+    const currentQuery = location.search.replace('?', '');
+    return (
+      <aside className="sidebar">
+        <div className="sidebar-scroll">
+          <div className="sidebar-section">
+            <h3 className="sidebar-section-title">لوحة التاجر</h3>
+            {MERCHANT_TABS.map(t => {
+              const linkQuery = `tab=${t.id}`;
+              if (linkQuery === currentQuery) return null;
+              return (
+                <button key={t.id} className="sidebar-action-btn" onClick={() => closeAndNav(`/merchant?tab=${t.id}`)} style={{ marginTop: 4 }}>
+                  {t.icon} {t.label}
+                </button>
+              );
+            })}
+            <button className="sidebar-action-btn logout" onClick={logout} style={{ marginTop: 8 }}>
+              🚪 تسجيل الخروج
+            </button>
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
+  // --- DEFAULT SIDEBAR (cart, auth, other pages) ---
+  const defaultLinks = PAGE_LINKS[base] || [];
+  return (
+    <aside className="sidebar">
+      <div className="sidebar-scroll">
+        <div className="sidebar-section sidebar-hero">
+          <div className="sidebar-slogan">
+            <h2>فهرس العينية</h2>
+            <p>نعطي لحلمك بعداً آخر</p>
+          </div>
+        </div>
+
+        {defaultLinks.length > 0 && (
+          <div className="sidebar-section">
+            {defaultLinks.map(link => (
+              <button key={link.path} className="sidebar-action-btn" onClick={() => closeAndNav(link.path)} style={{ marginTop: 4 }}>
+                {link.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {user ? (
           <div className="sidebar-section">
-            <h3 className="sidebar-section-title">مرحباً، {user.username || user.email}</h3>
             <button className="sidebar-action-btn" onClick={() => closeAndNav('/')}>
               🏠 الرئيسية
             </button>
-            <button className="sidebar-action-btn" onClick={() => closeAndNav('/cart')}>
-              🛒 السلة
-            </button>
-            {(user.role === 'admin' || user.role === 'merchant') && (
-              <button className="sidebar-action-btn" onClick={() => closeAndNav('/merchant')}>
-                🏪 لوحة التاجر
-              </button>
-            )}
-            {user.role === 'admin' && (
-              <button className="sidebar-action-btn" onClick={() => closeAndNav('/admin')}>
-                🛡️ لوحة الإدارة
-              </button>
-            )}
             <button className="sidebar-action-btn logout" onClick={logout}>
               🚪 تسجيل الخروج
             </button>
@@ -283,9 +353,6 @@ export default function Sidebar({ store, product, products, onSelectProduct, onA
           <div className="sidebar-section">
             <button className="sidebar-action-btn primary" onClick={() => closeAndNav('/auth?mode=login')}>
               🔐 تسجيل الدخول
-            </button>
-            <button className="sidebar-action-btn" onClick={() => closeAndNav('/auth?mode=register')}>
-              🚀 افتح متجرك الآن
             </button>
           </div>
         )}

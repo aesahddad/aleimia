@@ -36,8 +36,8 @@ function AppLayout() {
       <TopBar onToggleSidebar={() => setSidebarOpen(o => !o)} />
 
       <div className="app-body">
-        {!isStorePage && <div className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />}
-        {showSidebar && <Sidebar onNavigate={() => setSidebarOpen(false)} />}
+        {!isStorePage && window.innerWidth < 768 && <div className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />}
+        {showSidebar && <Sidebar onNavigate={() => window.innerWidth < 768 && setSidebarOpen(false)} />}
         <div className={`main-stage ${!isStorePage && showSidebar ? 'has-sidebar' : 'full'}`}>
           <div className="main-content">
             <Routes>

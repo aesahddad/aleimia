@@ -7,6 +7,8 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     role: { type: String, enum: ['customer', 'merchant', 'admin'], default: 'customer' },
     status: { type: String, enum: ['active', 'banned'], default: 'active' },
+    resetPasswordToken: { type: String },
+    resetPasswordExpire: { type: Date },
 
     // Store Relationship (For Merchants)
     storeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Store' },

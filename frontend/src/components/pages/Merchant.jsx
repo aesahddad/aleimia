@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import client from '../../api/client';
+import FileUploader from '../../components/shared/FileUploader';
 
-const TABS = [
+export const MERCHANT_TABS = [
   { id: 'dashboard', label: 'الرئيسية', icon: '📊' },
   { id: 'stores', label: 'متاجري', icon: '🏪' },
   { id: 'products', label: 'المنتجات', icon: '📦' },
@@ -12,8 +13,8 @@ const TABS = [
 
 export default function Merchant() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const [tab, setTab] = useState('dashboard');
+  const [searchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'dashboard';
 
   if (!user) {
     return (
@@ -29,19 +30,7 @@ export default function Merchant() {
     <div className="merchant-page">
       <h1>لوحة التاجر</h1>
 
-      <div className="admin-tabs">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            className={`admin-tab ${tab === t.id ? 'active' : ''}`}
-            onClick={() => setTab(t.id)}
-          >
-            {t.icon} {t.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'dashboard' && <MerchantDashboard user={user} onNavigate={setTab} />}
+      {tab === 'dashboard' && <MerchantDashboard user={user} />}
       {tab === 'stores' && <MerchantStores user={user} />}
       {tab === 'products' && <MerchantProducts user={user} />}
       {tab === 'settings' && <MerchantSettings user={user} />}
@@ -49,7 +38,8 @@ export default function Merchant() {
   );
 }
 
-function MerchantDashboard({ user, onNavigate }) {
+function MerchantDashboard({ user }) {
+  const navigate = useNavigate();
   const [stores, setStores] = useState([]);
   const [stats, setStats] = useState(null);
 
@@ -89,15 +79,15 @@ function MerchantDashboard({ user, onNavigate }) {
         <div className="merchant-quick-actions">
           <h3>إجراءات سريعة</h3>
           <div className="merchant-actions-grid">
-            <div className="merchant-action-card" onClick={() => onNavigate('stores')}>
+            <div className="merchant-action-card" onClick={() => navigate('/merchant?tab=stores')}>
               <span className="merchant-action-icon">➕</span>
               <span>متجر جديد</span>
             </div>
-            <div className="merchant-action-card" onClick={() => onNavigate('products')}>
+            <div className="merchant-action-card" onClick={() => navigate('/merchant?tab=products')}>
               <span className="merchant-action-icon">📦</span>
               <span>إضافة منتج</span>
             </div>
-            <div className="merchant-action-card" onClick={() => onNavigate('settings')}>
+            <div className="merchant-action-card" onClick={() => navigate('/merchant?tab=settings')}>
               <span className="merchant-action-icon">⚙️</span>
               <span>الإعدادات</span>
             </div>
@@ -112,8 +102,13 @@ function MerchantStores({ user }) {
   const [stores, setStores] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editStore, setEditStore] = useState(null);
-  const [form, setForm] = useState({ name: '', description: '', logoUrl: '', coverUrl: '', whatsappNumber: '' });
+  const [form, setForm] = useState({ name: '', description: '', category: '', logoUrl: '', coverUrl: '', whatsappNumber: '' });
   const [submitting, setSubmitting] = useState(false);
+  const [pendingStore, setPendingStore] = useState(null);
+  const [plans, setPlans] = useState([]);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [activationMode, setActivationMode] = useState('manual');
+  const [activating, setActivating] = useState(false);
 
   const loadStores = () => {
     client.get('/stores?admin=true&limit=100').then(r => {
@@ -122,9 +117,12 @@ function MerchantStores({ user }) {
   };
 
   useEffect(() => { loadStores(); }, [user]);
+  useEffect(() => {
+    client.get('/subscriptions/plans').then(r => setPlans(r.data)).catch(() => {});
+  }, []);
 
   const openCreate = () => {
-    setForm({ name: '', description: '', logoUrl: '', coverUrl: '', whatsappNumber: '' });
+    setForm({ name: '', description: '', category: '', logoUrl: '', coverUrl: '', whatsappNumber: '' });
     setEditStore(null);
     setShowForm(true);
   };
@@ -133,6 +131,7 @@ function MerchantStores({ user }) {
     setForm({
       name: store.name || '',
       description: store.description || '',
+      category: store.category || '',
       logoUrl: store.logoUrl || '',
       coverUrl: store.coverUrl || '',
       whatsappNumber: store.whatsappNumber || '',
@@ -146,17 +145,57 @@ function MerchantStores({ user }) {
     setSubmitting(true);
     try {
       const payload = { ...form, ownerId: user._id };
+      let store;
       if (editStore) {
-        await client.put(`/stores/${editStore._id}`, payload);
+        const { data } = await client.put(`/stores/${editStore._id}`, payload);
+        store = data.store;
       } else {
-        await client.post('/stores', payload);
+        const { data } = await client.post('/stores', payload);
+        store = data.store;
       }
       setShowForm(false);
       loadStores();
+      if (!editStore) {
+        setPendingStore(store);
+        setSelectedPlan(null);
+        setActivationMode('manual');
+      }
     } catch (err) {
       alert('فشل الحفظ: ' + (err.response?.data?.error || err.message));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const confirmActivation = async () => {
+    if (!pendingStore || !selectedPlan) return;
+    setActivating(true);
+    try {
+      if (activationMode === 'paid') {
+        const callback = `${window.location.origin}/api/payments/callback`;
+        const { data } = await client.post('/payments/initiate', {
+          planId: selectedPlan._id,
+          storeId: pendingStore._id,
+          callbackUrl: callback
+        });
+        if (data.paymentUrl) {
+          window.location.href = data.paymentUrl;
+          return;
+        }
+        if (data.paid === false) {
+          setPendingStore(null);
+          loadStores();
+          return;
+        }
+      }
+      await client.post('/subscriptions', { planId: selectedPlan._id, storeId: pendingStore._id });
+      setPendingStore(null);
+      loadStores();
+      alert('✅ تم إنشاء المتجر! سيتم تفعيله بعد مراجعة الإدارة.');
+    } catch (err) {
+      alert('❌ ' + (err.response?.data?.error || err.message));
+    } finally {
+      setActivating(false);
     }
   };
 
@@ -181,12 +220,24 @@ function MerchantStores({ user }) {
                 <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} className="admin-textarea" />
               </div>
               <div className="admin-field">
-                <label>رابط الشعار (logo)</label>
-                <input value={form.logoUrl} onChange={e => setForm({ ...form, logoUrl: e.target.value })} />
+                <label>التصنيف *</label>
+                <input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} required placeholder="الأزياء, التقنية, ..." />
               </div>
               <div className="admin-field">
-                <label>رابط صورة الغلاف</label>
-                <input value={form.coverUrl} onChange={e => setForm({ ...form, coverUrl: e.target.value })} />
+                <label>رابط الشعار (Logo)</label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input value={form.logoUrl} onChange={e => setForm({ ...form, logoUrl: e.target.value })} placeholder="https://..." style={{ flex: 1 }} />
+                  <FileUploader accept="image" onUpload={(url) => setForm(f => ({ ...f, logoUrl: url }))} onError={(msg) => alert(msg)} label="رفع" />
+                </div>
+                {form.logoUrl && <img src={form.logoUrl} alt="" style={{ width: 60, height: 60, borderRadius: 8, marginTop: 4, objectFit: 'cover' }} />}
+              </div>
+              <div className="admin-field">
+                <label>رابط صورة الغلاف (Cover)</label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input value={form.coverUrl} onChange={e => setForm({ ...form, coverUrl: e.target.value })} placeholder="https://..." style={{ flex: 1 }} />
+                  <FileUploader accept="image" onUpload={(url) => setForm(f => ({ ...f, coverUrl: url }))} onError={(msg) => alert(msg)} label="رفع" />
+                </div>
+                {form.coverUrl && <img src={form.coverUrl} alt="" style={{ width: '100%', maxHeight: 80, borderRadius: 8, marginTop: 4, objectFit: 'cover' }} />}
               </div>
               <div className="admin-field">
                 <label>رقم واتساب</label>
@@ -203,6 +254,64 @@ function MerchantStores({ user }) {
         </div>
       )}
 
+      {pendingStore && (
+        <div className="admin-modal-overlay" onClick={() => setPendingStore(null)}>
+          <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <h3>🎉 تم إنشاء المتجر! اختر خطة التفعيل</h3>
+            <p style={{ fontSize: 12, color: 'var(--text-light)', marginBottom: 16 }}>اختر الباقة المناسبة لمتجر "{pendingStore.name}"</p>
+
+            <div className="plans-mini-list">
+              {plans.filter(p => p.active).sort((a, b) => a.order - b.order).map(plan => (
+                <div key={plan._id} className={`plan-mini-card ${selectedPlan?._id === plan._id ? 'selected' : ''}`}
+                  onClick={() => setSelectedPlan(plan)} style={{ cursor: 'pointer' }}>
+                  <div className="plan-mini-header">
+                    <strong>{plan.name}</strong>
+                    <span>{plan.price === 0 ? 'مجاني' : `${plan.price} ر.س/${plan.duration === 'yearly' ? 'سنوي' : 'شهر'}`}</span>
+                  </div>
+                  {plan.features?.length > 0 && (
+                    <div className="plan-mini-features">
+                      {plan.features.slice(0, 3).map((f, i) => <small key={i}>✓ {f}</small>)}
+                      {plan.features.length > 3 && <small>+{plan.features.length - 3}</small>}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {selectedPlan && selectedPlan.price > 0 && (
+              <div className="activation-mode-select" style={{ marginTop: 16 }}>
+                <label style={{ fontSize: 13, fontWeight: 700, display: 'block', marginBottom: 8 }}>طريقة التفعيل</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className={`admin-btn ${activationMode === 'manual' ? 'approve' : ''}`}
+                    onClick={() => setActivationMode('manual')}>
+                    📩 يدوي (مراسلة الإدارة)
+                  </button>
+                  <button className={`admin-btn ${activationMode === 'paid' ? 'approve' : ''}`}
+                    onClick={() => setActivationMode('paid')}>
+                    💳 دفع إلكتروني (تفعيل فوري)
+                  </button>
+                </div>
+                {activationMode === 'manual' && (
+                  <p style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 6 }}>سيتم مراجعة طلبك من قبل الإدارة وتفعيل المتجر يدوياً.</p>
+                )}
+                {activationMode === 'paid' && (
+                  <p style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 6 }}>سيتم توجيهك إلى بوابة الدفع. بعد الدفع، سيتم تفعيل المتجر فوراً.</p>
+                )}
+              </div>
+            )}
+
+            {selectedPlan && (
+              <div className="admin-modal-btns" style={{ marginTop: 16 }}>
+                <button className="admin-btn approve" onClick={confirmActivation} disabled={activating}>
+                  {activating ? 'جاري...' : activationMode === 'paid' && selectedPlan.price > 0 ? '💳 ادفع الآن' : '✅ تأكيد'}
+                </button>
+                <button className="admin-btn delete" onClick={() => setPendingStore(null)}>لاحقاً</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="merchant-stores-list">
         {stores.length === 0 ? (
           <div className="admin-empty">
@@ -215,7 +324,9 @@ function MerchantStores({ user }) {
                 {store.logoUrl && <img src={store.logoUrl} alt="" className="merchant-store-logo" />}
                 <div>
                   <h2>{store.name}</h2>
-                  <span className={`status-badge status-${store.status}`}>{store.status}</span>
+                  <span className={`status-badge status-${store.status}`}>
+                    {{ pending: 'قيد الانتظار', active: 'نشط', frozen: 'مجمد', deleted: 'محذوف' }[store.status] || store.status}
+                  </span>
                 </div>
               </div>
               <button className="admin-btn" onClick={() => openEdit(store)}>✏️</button>
@@ -234,7 +345,7 @@ function MerchantProducts({ user }) {
   const [selectedStore, setSelectedStore] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
-  const [form, setForm] = useState({ name: '', description: '', price: '', imageUrl: '', category: '' });
+  const [form, setForm] = useState({ name: '', description: '', price: '', imageUrl: '', category: '', modelUrl: '', videoUrl: '', specs: [] });
   const [submitting, setSubmitting] = useState(false);
 
   const loadData = () => {
@@ -251,7 +362,7 @@ function MerchantProducts({ user }) {
 
   const openCreate = (storeId) => {
     setSelectedStore(storeId);
-    setForm({ name: '', description: '', price: '', imageUrl: '', category: '' });
+    setForm({ name: '', description: '', price: '', imageUrl: '', category: '', modelUrl: '', videoUrl: '', specs: [] });
     setEditProduct(null);
     setShowForm(true);
   };
@@ -264,6 +375,9 @@ function MerchantProducts({ user }) {
       price: product.price || '',
       imageUrl: product.imageUrl || '',
       category: product.category || '',
+      modelUrl: product.modelUrl || '',
+      videoUrl: product.videoUrl || '',
+      specs: product.specs || [],
     });
     setEditProduct(product);
     setShowForm(true);
@@ -344,11 +458,50 @@ function MerchantProducts({ user }) {
               </div>
               <div className="admin-field">
                 <label>رابط الصورة</label>
-                <input value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} />
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} placeholder="https://..." style={{ flex: 1 }} />
+                  <FileUploader accept="image" onUpload={(url) => setForm(f => ({ ...f, imageUrl: url }))} onError={(msg) => alert(msg)} label="رفع" />
+                </div>
+                {form.imageUrl && <img src={form.imageUrl} alt="" style={{ width: 60, height: 60, borderRadius: 8, marginTop: 4, objectFit: 'cover' }} />}
               </div>
               <div className="admin-field">
                 <label>التصنيف</label>
                 <input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} />
+              </div>
+              <div className="admin-field">
+                <label>رابط النموذج ثلاثي الأبعاد (GLB/GLTF)</label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input value={form.modelUrl} onChange={e => setForm({ ...form, modelUrl: e.target.value })} placeholder="https://..." style={{ flex: 1 }} />
+                  <FileUploader accept="model" onUpload={(url) => setForm(f => ({ ...f, modelUrl: url }))} onError={(msg) => alert(msg)} label="رفع" />
+                </div>
+              </div>
+              <div className="admin-field">
+                <label>رابط الفيديو (YouTube أو MP4)</label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input value={form.videoUrl} onChange={e => setForm({ ...form, videoUrl: e.target.value })} placeholder="https://youtube.com/..." style={{ flex: 1 }} />
+                  <FileUploader accept="video" onUpload={(url) => setForm(f => ({ ...f, videoUrl: url }))} onError={(msg) => alert(msg)} label="رفع" />
+                </div>
+              </div>
+              <div className="admin-field">
+                <label>المواصفات</label>
+                <div className="admin-specs-list">
+                  {form.specs.map((spec, i) => (
+                    <div key={i} className="admin-spec-row" style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                      <input value={spec.label} onChange={e => {
+                        const newSpecs = [...form.specs];
+                        newSpecs[i] = { ...newSpecs[i], label: e.target.value };
+                        setForm({ ...form, specs: newSpecs });
+                      }} placeholder="المواصفة" style={{ flex: 1 }} />
+                      <input value={spec.value} onChange={e => {
+                        const newSpecs = [...form.specs];
+                        newSpecs[i] = { ...newSpecs[i], value: e.target.value };
+                        setForm({ ...form, specs: newSpecs });
+                      }} placeholder="القيمة" style={{ flex: 1 }} />
+                      <button type="button" className="admin-btn delete" onClick={() => setForm({ ...form, specs: form.specs.filter((_, j) => j !== i) })}>✕</button>
+                    </div>
+                  ))}
+                  <button type="button" className="admin-btn" onClick={() => setForm({ ...form, specs: [...form.specs, { label: '', value: '' }] })}>+ إضافة مواصفة</button>
+                </div>
               </div>
               <div className="admin-modal-btns">
                 <button type="submit" className="admin-btn approve" disabled={submitting}>
@@ -398,14 +551,9 @@ function MerchantSettings({ user }) {
       const myStores = r.data.filter(s => s.ownerId === user._id || user.role === 'admin');
       setStores(myStores);
       if (myStores.length > 0) {
-        setSelectedStore(myStores[0]._id);
-        setForm({
-          name: myStores[0].name || '',
-          description: myStores[0].description || '',
-          logoUrl: myStores[0].logoUrl || '',
-          coverUrl: myStores[0].coverUrl || '',
-          whatsappNumber: myStores[0].whatsappNumber || '',
-        });
+        const s = myStores[0];
+        setSelectedStore(s._id);
+        setForm({ name: s.name || '', description: s.description || '', logoUrl: s.logoUrl || '', coverUrl: s.coverUrl || '', whatsappNumber: s.whatsappNumber || s.financial?.whatsapp || '', 'financial.iban': s.financial?.iban || '', 'financial.crNumber': s.financial?.crNumber || '', 'financial.taxNumber': s.financial?.taxNumber || '', 'branding.promoVideo': s.branding?.promoVideo || '', 'branding.specifications': s.branding?.specifications || '' });
       }
     }).catch(() => {});
   }, [user]);
@@ -414,21 +562,36 @@ function MerchantSettings({ user }) {
     setSelectedStore(id);
     const store = stores.find(s => s._id === id);
     if (store) {
-      setForm({
-        name: store.name || '',
-        description: store.description || '',
-        logoUrl: store.logoUrl || '',
-        coverUrl: store.coverUrl || '',
-        whatsappNumber: store.whatsappNumber || '',
-      });
+      setForm({ name: store.name || '', description: store.description || '', logoUrl: store.logoUrl || '', coverUrl: store.coverUrl || '', whatsappNumber: store.whatsappNumber || store.financial?.whatsapp || '', 'financial.iban': store.financial?.iban || '', 'financial.crNumber': store.financial?.crNumber || '', 'financial.taxNumber': store.financial?.taxNumber || '', 'branding.promoVideo': store.branding?.promoVideo || '', 'branding.specifications': store.branding?.specifications || '' });
     }
     setSaved(false);
+  };
+
+  const updateField = (key, value) => {
+    setForm(f => ({ ...f, [key]: value }));
   };
 
   const handleSave = async () => {
     if (!selectedStore) return;
     try {
-      await client.put(`/stores/${selectedStore}`, form);
+      const payload = {
+        name: form.name,
+        description: form.description,
+        logoUrl: form.logoUrl,
+        coverUrl: form.coverUrl,
+        whatsappNumber: form.whatsappNumber,
+        financial: {
+          iban: form['financial.iban'],
+          crNumber: form['financial.crNumber'],
+          taxNumber: form['financial.taxNumber'],
+          whatsapp: form.whatsappNumber
+        },
+        branding: {
+          promoVideo: form['branding.promoVideo'],
+          specifications: form['branding.specifications']
+        }
+      };
+      await client.put(`/stores/${selectedStore}`, payload);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e) {
@@ -460,26 +623,63 @@ function MerchantSettings({ user }) {
         <div className="admin-settings" style={{ marginTop: 16 }}>
           <div className="admin-setting-field">
             <label>اسم المتجر</label>
-            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="admin-input" />
+            <input value={form.name} onChange={e => updateField('name', e.target.value)} className="admin-input" />
           </div>
           <div className="admin-setting-field">
             <label>الوصف</label>
-            <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} className="admin-textarea" />
-          </div>
-          <div className="admin-setting-field">
-            <label>رابط الشعار (Logo URL)</label>
-            <input value={form.logoUrl} onChange={e => setForm({ ...form, logoUrl: e.target.value })} className="admin-input" />
-          </div>
-          <div className="admin-setting-field">
-            <label>رابط الغلاف (Cover URL)</label>
-            <input value={form.coverUrl} onChange={e => setForm({ ...form, coverUrl: e.target.value })} className="admin-input" />
-          </div>
-          <div className="admin-setting-field">
-            <label>رقم واتساب</label>
-            <input value={form.whatsappNumber} onChange={e => setForm({ ...form, whatsappNumber: e.target.value })} className="admin-input" />
+            <textarea value={form.description} onChange={e => updateField('description', e.target.value)} rows={3} className="admin-textarea" />
           </div>
 
-          <button className="admin-btn approve" onClick={handleSave} style={{ padding: '10px 24px', marginTop: 8 }}>
+          <h3 className="admin-subtitle" style={{ marginTop: 24 }}>العلامة التجارية</h3>
+          <div className="admin-setting-field">
+            <label>رابط الشعار (Logo)</label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input value={form.logoUrl} onChange={e => updateField('logoUrl', e.target.value)} className="admin-input" placeholder="https://..." style={{ flex: 1 }} />
+              <FileUploader accept="image" onUpload={(url) => updateField('logoUrl', url)} onError={(msg) => alert(msg)} label="رفع" />
+            </div>
+            {form.logoUrl && <img src={form.logoUrl} alt="الشعار" style={{ width: 60, height: 60, borderRadius: 8, marginTop: 4, objectFit: 'cover' }} />}
+          </div>
+          <div className="admin-setting-field">
+            <label>رابط الغلاف (Cover)</label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input value={form.coverUrl} onChange={e => updateField('coverUrl', e.target.value)} className="admin-input" placeholder="https://..." style={{ flex: 1 }} />
+              <FileUploader accept="image" onUpload={(url) => updateField('coverUrl', url)} onError={(msg) => alert(msg)} label="رفع" />
+            </div>
+            {form.coverUrl && <img src={form.coverUrl} alt="الغلاف" style={{ width: '100%', maxHeight: 80, borderRadius: 8, marginTop: 4, objectFit: 'cover' }} />}
+          </div>
+          <div className="admin-setting-field">
+            <label>فيديو ترويجي (YouTube أو MP4)</label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input value={form['branding.promoVideo']} onChange={e => updateField('branding.promoVideo', e.target.value)} className="admin-input" placeholder="https://youtube.com/..." style={{ flex: 1 }} />
+              <FileUploader accept="video" onUpload={(url) => updateField('branding.promoVideo', url)} label="رفع" />
+            </div>
+          </div>
+          <div className="admin-setting-field">
+            <label>مواصفات المتجر</label>
+            <textarea value={form['branding.specifications']} onChange={e => updateField('branding.specifications', e.target.value)} rows={3} className="admin-textarea" placeholder="وصف كامل للمتجر ليظهر في الشريط الجانبي" />
+          </div>
+
+          <h3 className="admin-subtitle" style={{ marginTop: 24 }}>معلومات التواصل</h3>
+          <div className="admin-setting-field">
+            <label>رقم واتساب</label>
+            <input value={form.whatsappNumber} onChange={e => updateField('whatsappNumber', e.target.value)} className="admin-input" />
+          </div>
+
+          <h3 className="admin-subtitle" style={{ marginTop: 24 }}>المعلومات المالية</h3>
+          <div className="admin-setting-field">
+            <label>رقم الآيبان (IBAN)</label>
+            <input value={form['financial.iban']} onChange={e => updateField('financial.iban', e.target.value)} className="admin-input" placeholder="SA..." />
+          </div>
+          <div className="admin-setting-field">
+            <label>رقم السجل التجاري</label>
+            <input value={form['financial.crNumber']} onChange={e => updateField('financial.crNumber', e.target.value)} className="admin-input" />
+          </div>
+          <div className="admin-setting-field">
+            <label>الرقم الضريبي</label>
+            <input value={form['financial.taxNumber']} onChange={e => updateField('financial.taxNumber', e.target.value)} className="admin-input" />
+          </div>
+
+          <button className="admin-btn approve" onClick={handleSave} style={{ padding: '10px 24px', marginTop: 16 }}>
             {saved ? '✓ تم الحفظ' : 'حفظ الإعدادات'}
           </button>
         </div>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import client from '../../api/client';
 import { AD_PRICE } from './config';
 import LocationPicker from '../../components/shared/LocationPicker';
+import FileUploader from '../../components/shared/FileUploader';
 
 export default function AdForm({ category, onClose, onCreated }) {
   const [form, setForm] = useState({
@@ -84,8 +85,11 @@ export default function AdForm({ category, onClose, onCreated }) {
             </div>
 
             <div className="ad-form-field">
-              <label>رابط الفيديو (YouTube)</label>
-              <input name="videoUrl" value={form.videoUrl} onChange={handleChange} />
+              <label>رابط الفيديو (YouTube أو MP4)</label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input name="videoUrl" value={form.videoUrl} onChange={handleChange} placeholder="https://youtube.com/..." style={{ flex: 1 }} />
+                <FileUploader accept="video" onUpload={(url) => setForm(f => ({ ...f, videoUrl: url }))} label="رفع" />
+              </div>
             </div>
 
             <div className="ad-form-field">

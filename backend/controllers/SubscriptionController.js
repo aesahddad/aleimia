@@ -31,7 +31,10 @@ class SubscriptionController {
 
     static async updatePlan(req, res) {
         try {
-            const plan = await SubscriptionPlan.findByIdAndUpdate(req.params.id, req.body, { new: true });
+            const allowed = ['name', 'slug', 'price', 'originalPrice', 'duration', 'discount', 'features', 'highlighted', 'recommended', 'badge', 'active', 'order'];
+            const update = {};
+            allowed.forEach(f => { if (req.body[f] !== undefined) update[f] = req.body[f]; });
+            const plan = await SubscriptionPlan.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
             if (!plan) return res.status(404).json({ error: 'Plan not found' });
             res.json({ success: true, plan });
         } catch (e) {

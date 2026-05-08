@@ -10,13 +10,18 @@ const logger = require('../shared/logger');
 router.get('/status', async (req, res) => {
     try {
         const settings = await SystemSettings.findById('global_settings');
-        if (settings && settings.maintenanceMode) {
-            return res.status(503).json({ 
-                status: 'Maintenance', 
-                message: settings.announcement || 'الموقع تحت الصيانة' 
-            });
+        const data = {
+            status: 'OK',
+            version: process.env.npm_package_version || '4.2.0',
+            maintenanceMode: settings?.maintenanceMode || false,
+            announcement: settings?.announcement || '',
+            promoVideoUrl: settings?.promoVideoUrl || '',
+            promoVideoPlansUrl: settings?.promoVideoPlansUrl || ''
+        };
+        if (settings?.maintenanceMode) {
+            return res.status(503).json({ ...data, status: 'Maintenance' });
         }
-        res.json({ status: 'OK', version: process.env.npm_package_version || '4.2.0' });
+        res.json(data);
     } catch (e) {
         logger.error('Status Check Failed:', e);
         res.status(500).json({ status: 'Error', message: 'Internal Server Error' });

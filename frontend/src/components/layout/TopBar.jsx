@@ -60,13 +60,13 @@ export default function TopBar({ onToggleSidebar }) {
             ‹
           </button>
           <div id="tabs-scroll" className="topbar-tabs-scroll">
-            {[{ id: 'home', label: 'الرئيسية', icon: '🏠' }, ...tabs.filter(t => t.visible)].map(tab => (
+            {[{ id: 'home', label: 'الرئيسية', icon: '🏠' }, ...tabs.filter(t => t.visible && t.id !== 'platform')].map(tab => (
               <button
                 key={tab.id}
                 className={`topbar-tab ${isActive(tab.id) ? 'active' : ''}`}
                 onClick={() => navigate(tab.id === 'home' ? '/' : `/${tab.id}`)}
               >
-                {tab.icon && <i className={tab.icon} />}
+                {tab.icon && (tab.icon.startsWith('fa') ? <i className={tab.icon} /> : <span className="topbar-tab-icon">{tab.icon}</span>)}
                 <span>{tab.label}</span>
               </button>
             ))}

@@ -7,7 +7,7 @@ import AdDetail from './AdDetail';
 import AdForm from './AdForm';
 
 export default function AdBoardPage() {
-  const { category } = useParams();
+  const { tabId: category } = useParams();
   const navigate = useNavigate();
   const [ads, setAds] = useState([]);
   const [selectedAd, setSelectedAd] = useState(null);

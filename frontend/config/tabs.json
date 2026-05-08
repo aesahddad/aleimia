@@ -38,5 +38,13 @@
         "visible": true,
         "order": 5,
         "icon": "fas fa-briefcase"
+    },
+    {
+        "id": "test",
+        "label": "موقعنا",
+        "icon": "fas fa-star",
+        "visible": true,
+        "order": 6,
+        "type": "module"
     }
 ]

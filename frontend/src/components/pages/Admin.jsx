@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import client from '../../api/client';
+import FileUploader from '../../components/shared/FileUploader';
 
 const TABS = [
   { id: 'stats', label: 'الإحصائيات', icon: '📊' },
@@ -12,6 +13,7 @@ const TABS = [
   { id: 'moderation', label: 'الرقابة', icon: '🛡️' },
   { id: 'settings', label: 'الإعدادات', icon: '⚙️' },
   { id: 'trash', label: 'المحذوفات', icon: '🗑️' },
+  { id: 'subscriptions', label: 'الاشتراكات', icon: '💎' },
   { id: 'roles', label: 'الصلاحيات', icon: '🔑' },
 ];
 
@@ -42,6 +44,7 @@ export default function Admin() {
       {tab === 'moderation' && <ModerationSection />}
       {tab === 'settings' && <SettingsSection />}
       {tab === 'trash' && <TrashSection />}
+      {tab === 'subscriptions' && <SubscriptionsSection />}
       {tab === 'roles' && <RolesSection />}
     </div>
   );
@@ -184,11 +187,16 @@ function TabsSection() {
 }
 
 function StoresSection() {
+  const navigate = useNavigate();
   const [stores, setStores] = useState([]);
+  const [editStore, setEditStore] = useState(null);
+  const [showForm, setShowForm] = useState(false);
 
-  useEffect(() => {
+  const loadStores = () => {
     client.get('/stores?admin=true&limit=100').then(r => setStores(r.data)).catch(() => {});
-  }, []);
+  };
+
+  useEffect(() => { loadStores(); }, []);
 
   const updateStoreStatus = async (id, status) => {
     try {
@@ -199,17 +207,64 @@ function StoresSection() {
     }
   };
 
+  const saveStore = async (storeData) => {
+    try {
+      if (storeData._id) {
+        const { data } = await client.put(`/stores/${storeData._id}`, storeData);
+        setStores(prev => prev.map(s => s._id === storeData._id ? data.store : s));
+      } else {
+        const { data } = await client.post('/stores', { ...storeData, ownerId: storeData.ownerId || undefined });
+        setStores(prev => [...prev, data.store]);
+      }
+      setShowForm(false);
+      setEditStore(null);
+    } catch (e) {
+      alert('فشل الحفظ: ' + (e.response?.data?.error || e.message));
+    }
+  };
+
+  const openCreate = () => {
+    setEditStore(null);
+    setShowForm(true);
+  };
+
+  const openEdit = (store) => {
+    setEditStore({ ...store });
+    setShowForm(true);
+  };
+
   return (
     <div className="admin-section">
-      <h2>إدارة المتاجر</h2>
+      <div className="admin-section-header">
+        <h2>إدارة المتاجر</h2>
+        <button className="admin-btn approve" onClick={openCreate}>+ إضافة متجر</button>
+      </div>
+
+      {showForm && (
+        <StoreFormModal
+          store={editStore}
+          onSave={saveStore}
+          onClose={() => { setShowForm(false); setEditStore(null); }}
+        />
+      )}
+
       <div className="admin-list">
         {stores.map(store => (
           <div key={store._id} className="admin-item">
             <div className="admin-item-info">
-              <strong>{store.name}</strong>
-              <span className={`status-badge status-${store.status}`}>{store.status}</span>
+              {store.imageUrl && <img src={store.imageUrl} alt="" className="admin-thumb" />}
+              <div>
+                <strong>{store.name}</strong>
+                <span className="admin-meta">{store.category}</span>
+                <span className={`status-badge status-${store.status}`} style={{ marginRight: 8 }}>
+                  {{ pending: 'قيد الانتظار', active: 'نشط', frozen: 'مجمد', deleted: 'محذوف' }[store.status] || store.status}
+                </span>
+              </div>
             </div>
             <div className="admin-item-actions">
+              <button className="admin-btn" onClick={() => window.open(`/store/${store._id}`, '_blank')} title="عرض المتجر">👁️</button>
+              <button className="admin-btn" onClick={() => navigate(`/merchant?tab=settings`)} title="إدارة كتاجر">🛠️</button>
+              <button className="admin-btn" onClick={() => openEdit(store)} title="تعديل">✏️</button>
               {store.status === 'pending' && (
                 <button className="admin-btn approve" onClick={() => updateStoreStatus(store._id, 'active')}>تفعيل</button>
               )}
@@ -224,6 +279,59 @@ function StoresSection() {
           </div>
         ))}
         {stores.length === 0 && <div className="admin-empty">لا توجد متاجر</div>}
+      </div>
+    </div>
+  );
+}
+
+function StoreFormModal({ store, onSave, onClose }) {
+  const [form, setForm] = useState(store || { name: '', description: '', category: '', imageUrl: '', whatsappNumber: '' });
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name || form.name.length < 3) { alert('اسم المتجر قصير جداً'); return; }
+    if (!form.category) { alert('التصنيف مطلوب'); return; }
+    setSaving(true);
+    await onSave(form);
+    setSaving(false);
+  };
+
+  return (
+    <div className="admin-modal-overlay" onClick={onClose}>
+      <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
+        <h3>{store?._id ? 'تعديل المتجر' : 'إضافة متجر جديد'}</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="admin-field">
+            <label>اسم المتجر *</label>
+            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
+          </div>
+          <div className="admin-field">
+            <label>الوصف</label>
+            <textarea value={form.description || ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} />
+          </div>
+          <div className="admin-field">
+            <label>التصنيف *</label>
+            <input value={form.category || ''} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} required placeholder="الأزياء, التقنية, ..." />
+          </div>
+          <div className="admin-field">
+            <label>رابط الصورة</label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input value={form.imageUrl || ''} onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="https://..." style={{ flex: 1 }} />
+              <FileUploader accept="image" onUpload={(url) => setForm(f => ({ ...f, imageUrl: url }))} label="رفع" />
+            </div>
+          </div>
+          <div className="admin-field">
+            <label>رقم واتساب</label>
+            <input value={form.whatsappNumber || ''} onChange={e => setForm(f => ({ ...f, whatsappNumber: e.target.value }))} />
+          </div>
+          <div className="admin-modal-btns">
+            <button type="submit" className="admin-btn approve" disabled={saving}>
+              {saving ? 'جاري الحفظ...' : '💾 حفظ'}
+            </button>
+            <button type="button" className="admin-btn delete" onClick={onClose}>إلغاء</button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -292,6 +400,28 @@ function UsersSection() {
     }
   };
 
+  const toggleBan = async (id, currentStatus) => {
+    const newStatus = currentStatus === 'banned' ? 'active' : 'banned';
+    const action = newStatus === 'banned' ? 'حظر' : 'إلغاء حظر';
+    if (!confirm(`تأكيد ${action} هذا المستخدم؟`)) return;
+    try {
+      await client.put(`/users/${id}/status`, { status: newStatus });
+      setUsers(prev => prev.map(u => u._id === id ? { ...u, status: newStatus } : u));
+    } catch (e) {
+      alert('فشل تحديث الحالة');
+    }
+  };
+
+  const deleteUser = async (id) => {
+    if (!confirm('⚠️ حذف المستخدم نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.')) return;
+    try {
+      await client.delete(`/users/${id}`);
+      setUsers(prev => prev.filter(u => u._id !== id));
+    } catch (e) {
+      alert('فشل الحذف');
+    }
+  };
+
   const filtered = filter === 'all' ? users : users.filter(u => u.role === filter);
 
   return (
@@ -313,6 +443,9 @@ function UsersSection() {
               <div>
                 <strong>{u.username || u.email}</strong>
                 <span className="admin-meta">{u.email}</span>
+                <span className={`status-badge status-${u.status === 'banned' ? 'deleted' : 'active'}`} style={{ marginRight: 8 }}>
+                  {u.status === 'banned' ? 'محظور' : 'نشط'}
+                </span>
               </div>
             </div>
             <div className="admin-item-actions">
@@ -325,6 +458,10 @@ function UsersSection() {
                 <option value="merchant">تاجر</option>
                 <option value="admin">مشرف</option>
               </select>
+              <button className="admin-btn" onClick={() => toggleBan(u._id, u.status)}>
+                {u.status === 'banned' ? '✓ إلغاء حظر' : '🚫 حظر'}
+              </button>
+              <button className="admin-btn delete" onClick={() => deleteUser(u._id)}>🗑️</button>
             </div>
           </div>
         ))}
@@ -400,38 +537,42 @@ function ModerationSection() {
 
 function SettingsSection() {
   const [settings, setSettings] = useState(null);
+  const [draft, setDraft] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    client.get('/admin/settings').then(r => setSettings(r.data)).catch(() => {});
+    client.get('/admin/settings').then(r => { setSettings(r.data); setDraft(r.data); }).catch(() => {});
   }, []);
 
-  const update = async (key, value) => {
-    let updated;
-    if (key === '') {
-      updated = value;
-    } else {
-      updated = { ...settings, [key]: value };
-    }
-    try {
-      await client.put('/admin/settings', updated);
-      setSettings(updated);
-    } catch (e) {
-      alert('فشل حفظ الإعدادات');
-    }
+  const updateDraft = (key, value) => {
+    setDraft(prev => ({ ...prev, [key]: value }));
   };
 
-  const updateNested = (path, value) => {
-    const updated = { ...settings };
+  const updateDraftNested = (path, value) => {
+    const updated = { ...draft };
     const keys = path.split('.');
     let obj = updated;
     for (let i = 0; i < keys.length - 1; i++) {
       obj = obj[keys[i]] = { ...obj[keys[i]] };
     }
     obj[keys[keys.length - 1]] = value;
-    update('', updated);
+    setDraft(updated);
   };
 
-  if (!settings) return <div className="home-loading">جاري التحميل...</div>;
+  const save = async () => {
+    setSaving(true);
+    try {
+      await client.put('/admin/settings', draft);
+      setSettings(draft);
+      alert('✅ تم حفظ الإعدادات بنجاح');
+    } catch (e) {
+      alert('❌ فشل حفظ الإعدادات');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!draft) return <div className="home-loading">جاري التحميل...</div>;
 
   return (
     <div className="admin-section">
@@ -443,7 +584,7 @@ function SettingsSection() {
             <p>تعطيل الموقع للزوار مع إبقائه متاحاً للمشرفين</p>
           </div>
           <label className="admin-toggle">
-            <input type="checkbox" checked={settings.maintenanceMode} onChange={e => update('maintenanceMode', e.target.checked)} />
+            <input type="checkbox" checked={draft.maintenanceMode} onChange={e => updateDraft('maintenanceMode', e.target.checked)} />
             <span className="admin-toggle-slider"></span>
           </label>
         </div>
@@ -454,7 +595,7 @@ function SettingsSection() {
             <p>التحكم بإمكانية فتح متاجر جديدة من قبل المستخدمين</p>
           </div>
           <label className="admin-toggle">
-            <input type="checkbox" checked={settings.allowNewMerchants} onChange={e => update('allowNewMerchants', e.target.checked)} />
+            <input type="checkbox" checked={draft.allowNewMerchants} onChange={e => updateDraft('allowNewMerchants', e.target.checked)} />
             <span className="admin-toggle-slider"></span>
           </label>
         </div>
@@ -465,24 +606,24 @@ function SettingsSection() {
             <p>نشر إعلانات بدون تسجيل دخول</p>
           </div>
           <label className="admin-toggle">
-            <input type="checkbox" checked={settings.allowGuestAds} onChange={e => update('allowGuestAds', e.target.checked)} />
+            <input type="checkbox" checked={draft.allowGuestAds} onChange={e => updateDraft('allowGuestAds', e.target.checked)} />
             <span className="admin-toggle-slider"></span>
           </label>
         </div>
 
         <div className="admin-setting-field">
           <label>إعلان الموقع (Announcement)</label>
-          <textarea value={settings.announcement || ''} onChange={e => update('announcement', e.target.value)} rows={3} />
+          <textarea value={draft.announcement || ''} onChange={e => updateDraft('announcement', e.target.value)} rows={3} />
         </div>
 
         <div className="admin-setting-field">
           <label>فيديو ترويجي (رابط YouTube أو MP4)</label>
-          <input className="admin-input" value={settings.promoVideoUrl || ''} onChange={e => update('promoVideoUrl', e.target.value)} placeholder="https://youtube.com/... أو https://example.com/video.mp4" />
+          <input className="admin-input" value={draft.promoVideoUrl || ''} onChange={e => updateDraft('promoVideoUrl', e.target.value)} placeholder="https://youtube.com/... أو https://example.com/video.mp4" />
         </div>
 
         <div className="admin-setting-field">
           <label>فيديو صفحة الاشتراكات (رابط YouTube أو MP4)</label>
-          <input className="admin-input" value={settings.promoVideoPlansUrl || ''} onChange={e => update('promoVideoPlansUrl', e.target.value)} placeholder="https://youtube.com/... أو https://example.com/video.mp4" />
+          <input className="admin-input" value={draft.promoVideoPlansUrl || ''} onChange={e => updateDraft('promoVideoPlansUrl', e.target.value)} placeholder="https://youtube.com/... أو https://example.com/video.mp4" />
         </div>
 
         <h3 className="admin-subtitle" style={{ marginTop: 24 }}>بوابة الدفع - MyFatoorah</h3>
@@ -491,21 +632,21 @@ function SettingsSection() {
             <strong>تفعيل بوابة الدفع</strong>
           </div>
           <label className="admin-toggle">
-            <input type="checkbox" checked={settings.enablePaymentGateway} onChange={e => update('enablePaymentGateway', e.target.checked)} />
+            <input type="checkbox" checked={draft.enablePaymentGateway} onChange={e => updateDraft('enablePaymentGateway', e.target.checked)} />
             <span className="admin-toggle-slider"></span>
           </label>
         </div>
         <div className="admin-setting-field">
           <label>MyFatoorah API Key</label>
-          <input className="admin-input" value={settings.myfatoorah?.apiKey || ''} onChange={e => updateNested('myfatoorah.apiKey', e.target.value)} />
+          <input className="admin-input" value={draft.myfatoorah?.apiKey || ''} onChange={e => updateDraftNested('myfatoorah.apiKey', e.target.value)} />
         </div>
         <div className="admin-setting-field">
           <label>Merchant ID</label>
-          <input className="admin-input" value={settings.myfatoorah?.merchantId || ''} onChange={e => updateNested('myfatoorah.merchantId', e.target.value)} />
+          <input className="admin-input" value={draft.myfatoorah?.merchantId || ''} onChange={e => updateDraftNested('myfatoorah.merchantId', e.target.value)} />
         </div>
         <div className="admin-setting-field">
           <label>البيئة</label>
-          <select className="admin-filter-select" value={settings.myfatoorah?.mode || 'test'} onChange={e => updateNested('myfatoorah.mode', e.target.value)}>
+          <select className="admin-filter-select" value={draft.myfatoorah?.mode || 'test'} onChange={e => updateDraftNested('myfatoorah.mode', e.target.value)}>
             <option value="test">اختبار (Test)</option>
             <option value="live">فعلي (Live)</option>
           </select>
@@ -517,25 +658,29 @@ function SettingsSection() {
             <strong>تفعيل ZATCA</strong>
           </div>
           <label className="admin-toggle">
-            <input type="checkbox" checked={settings.zatca?.enabled || false} onChange={e => updateNested('zatca.enabled', e.target.checked)} />
+            <input type="checkbox" checked={draft.zatca?.enabled || false} onChange={e => updateDraftNested('zatca.enabled', e.target.checked)} />
             <span className="admin-toggle-slider"></span>
           </label>
         </div>
         <div className="admin-setting-field">
           <label>اسم الشركة</label>
-          <input className="admin-input" value={settings.zatca?.companyName || ''} onChange={e => updateNested('zatca.companyName', e.target.value)} />
+          <input className="admin-input" value={draft.zatca?.companyName || ''} onChange={e => updateDraftNested('zatca.companyName', e.target.value)} />
         </div>
         <div className="admin-setting-field">
           <label>الرقم الضريبي</label>
-          <input className="admin-input" value={settings.zatca?.taxNumber || ''} onChange={e => updateNested('zatca.taxNumber', e.target.value)} />
+          <input className="admin-input" value={draft.zatca?.taxNumber || ''} onChange={e => updateDraftNested('zatca.taxNumber', e.target.value)} />
         </div>
         <div className="admin-setting-field">
           <label>البيئة</label>
-          <select className="admin-filter-select" value={settings.zatca?.environment || 'sandbox'} onChange={e => updateNested('zatca.environment', e.target.value)}>
+          <select className="admin-filter-select" value={draft.zatca?.environment || 'sandbox'} onChange={e => updateDraftNested('zatca.environment', e.target.value)}>
             <option value="sandbox">اختبار (Sandbox)</option>
             <option value="production">إنتاج (Production)</option>
           </select>
         </div>
+
+        <button className="admin-save-btn" onClick={save} disabled={saving}>
+          {saving ? 'جاري الحفظ...' : '💾 حفظ الإعدادات'}
+        </button>
       </div>
     </div>
   );
@@ -595,6 +740,212 @@ function TrashSection() {
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function SubscriptionsSection() {
+  const [plans, setPlans] = useState([]);
+  const [editPlan, setEditPlan] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    client.get('/subscriptions/admin/plans')
+      .then(r => setPlans(r.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const savePlan = async (planData) => {
+    try {
+      const allowed = ['name', 'slug', 'price', 'originalPrice', 'duration', 'discount', 'features', 'highlighted', 'recommended', 'badge', 'active', 'order'];
+      const clean = {};
+      allowed.forEach(f => { if (planData[f] !== undefined) clean[f] = planData[f]; });
+      if (planData._id) {
+        const { data } = await client.put(`/subscriptions/admin/plans/${planData._id}`, clean);
+        setPlans(prev => prev.map(p => p._id === planData._id ? data.plan : p));
+      } else {
+        const { data } = await client.post('/subscriptions/admin/plans', clean);
+        setPlans(prev => [...prev, data.plan]);
+      }
+      setEditPlan(null);
+    } catch (e) {
+      alert('فشل الحفظ: ' + (e.response?.data?.error || e.message));
+    }
+  };
+
+  const deletePlan = async (id) => {
+    if (!confirm('هل أنت متأكد من حذف هذه الخطة؟')) return;
+    try {
+      await client.delete(`/subscriptions/admin/plans/${id}`);
+      setPlans(prev => prev.filter(p => p._id !== id));
+    } catch (e) {
+      alert('فشل الحذف');
+    }
+  };
+
+  const seedPlans = async () => {
+    if (!confirm('سيتم إضافة الخطط الافتراضية في حال عدم وجود خطط مسبقة. هل تريد المتابعة؟')) return;
+    try {
+      const { data } = await client.post('/subscriptions/plans/seed');
+      if (data.success) {
+        const res = await client.get('/subscriptions/admin/plans');
+        setPlans(res.data);
+      }
+      alert(data.message || '✅ تمت إضافة الخطط الافتراضية');
+    } catch (e) {
+      alert(e.response?.data?.error || 'فشلت إضافة الخطط');
+    }
+  };
+
+  if (loading) return <div className="home-loading">جاري التحميل...</div>;
+
+  return (
+    <div className="admin-section">
+      <div className="admin-section-header">
+        <h2>إدارة خطط الاشتراك</h2>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="admin-btn" onClick={seedPlans}>🌱 الخطط الافتراضية</button>
+          <button className="admin-btn approve" onClick={() => setEditPlan({ name: '', slug: '', price: 0, duration: 'monthly', features: [], active: true, order: plans.length + 1 })}>
+            + إضافة خطة
+          </button>
+        </div>
+      </div>
+
+      {editPlan && (
+        <PlanFormModal
+          plan={editPlan}
+          onSave={savePlan}
+          onClose={() => setEditPlan(null)}
+        />
+      )}
+
+      <div className="admin-list">
+        {plans.sort((a, b) => a.order - b.order).map(plan => (
+          <div key={plan._id} className="admin-item">
+            <div className="admin-item-info">
+              <div>
+                <strong>{plan.name}</strong>
+                <span className="admin-meta">
+                  {plan.price} ر.س / {plan.duration === 'yearly' ? 'سنوي' : 'شهري'}
+                  {plan.badge && ` · وسام: ${plan.badge}`}
+                </span>
+                <span className={`status-badge status-${plan.active ? 'active' : 'deleted'}`}>
+                  {plan.active ? 'نشط' : 'معطل'}
+                </span>
+              </div>
+            </div>
+            <div className="admin-item-actions">
+              <button className="admin-btn" onClick={() => setEditPlan({ ...plan })}>✏️</button>
+              <button className="admin-btn delete" onClick={() => deletePlan(plan._id)}>🗑️</button>
+            </div>
+          </div>
+        ))}
+        {plans.length === 0 && <div className="admin-empty">لا توجد خطط اشتراك</div>}
+      </div>
+    </div>
+  );
+}
+
+function PlanFormModal({ plan, onSave, onClose }) {
+  const [form, setForm] = useState(plan);
+  const [featureInput, setFeatureInput] = useState('');
+
+  const addFeature = () => {
+    if (!featureInput.trim()) return;
+    setForm(f => ({ ...f, features: [...(f.features || []), featureInput.trim()] }));
+    setFeatureInput('');
+  };
+
+  const removeFeature = (idx) => {
+    setForm(f => ({ ...f, features: f.features.filter((_, i) => i !== idx) }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(form);
+  };
+
+  return (
+    <div className="admin-modal-overlay" onClick={onClose}>
+      <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
+        <h3>{form._id ? 'تعديل الخطة' : 'إضافة خطة جديدة'}</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="admin-field">
+            <label>الاسم *</label>
+            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
+          </div>
+          <div className="admin-field">
+            <label>المعرف (slug) *</label>
+            <input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} required placeholder="basic, bronze, silver..." />
+          </div>
+          <div className="admin-field-row">
+            <div className="admin-field" style={{ flex: 1 }}>
+              <label>السعر (ريال) *</label>
+              <input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: Number(e.target.value) }))} required />
+            </div>
+            <div className="admin-field" style={{ flex: 1 }}>
+              <label>السعر الأصلي</label>
+              <input type="number" value={form.originalPrice || ''} onChange={e => setForm(f => ({ ...f, originalPrice: Number(e.target.value) || undefined }))} />
+            </div>
+          </div>
+          <div className="admin-field-row">
+            <div className="admin-field" style={{ flex: 1 }}>
+              <label>المدة</label>
+              <select className="admin-filter-select" value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))}>
+                <option value="monthly">شهري</option>
+                <option value="yearly">سنوي</option>
+              </select>
+            </div>
+            <div className="admin-field" style={{ flex: 1 }}>
+              <label>الترتيب</label>
+              <input type="number" value={form.order} onChange={e => setForm(f => ({ ...f, order: Number(e.target.value) }))} />
+            </div>
+          </div>
+          <div className="admin-field">
+            <label>الخصم (نص)</label>
+            <input value={form.discount || ''} onChange={e => setForm(f => ({ ...f, discount: e.target.value }))} placeholder="50%, مجاني..." />
+          </div>
+          <div className="admin-field">
+            <label>الوسام (badge)</label>
+            <input value={form.badge || ''} onChange={e => setForm(f => ({ ...f, badge: e.target.value }))} placeholder="الأكثر مبيعاً, الأفضل..." />
+          </div>
+          <div className="admin-field-row">
+            <label className="admin-toggle" style={{ justifyContent: 'flex-start', gap: 8 }}>
+              <input type="checkbox" checked={form.active} onChange={e => setForm(f => ({ ...f, active: e.target.checked }))} />
+              <span>نشط</span>
+            </label>
+            <label className="admin-toggle" style={{ justifyContent: 'flex-start', gap: 8 }}>
+              <input type="checkbox" checked={form.highlighted || false} onChange={e => setForm(f => ({ ...f, highlighted: e.target.checked }))} />
+              <span>مميز</span>
+            </label>
+            <label className="admin-toggle" style={{ justifyContent: 'flex-start', gap: 8 }}>
+              <input type="checkbox" checked={form.recommended || false} onChange={e => setForm(f => ({ ...f, recommended: e.target.checked }))} />
+              <span>موصى به</span>
+            </label>
+          </div>
+          <div className="admin-field">
+            <label>المميزات</label>
+            <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+              <input value={featureInput} onChange={e => setFeatureInput(e.target.value)} placeholder="أضف ميزة..."
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addFeature(); } }} />
+              <button type="button" className="admin-btn approve" onClick={addFeature}>+</button>
+            </div>
+            <div className="admin-features-list">
+              {(form.features || []).map((f, i) => (
+                <div key={i} className="admin-feature-tag">
+                  <span>{f}</span>
+                  <button type="button" onClick={() => removeFeature(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e74c3c' }}>✕</button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="admin-modal-btns">
+            <button type="submit" className="admin-btn approve">💾 حفظ</button>
+            <button type="button" className="admin-btn delete" onClick={onClose}>إلغاء</button>
+          </div>
+        </form>
       </div>
     </div>
   );

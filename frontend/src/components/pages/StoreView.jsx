@@ -61,6 +61,16 @@ export default function StoreView() {
 
   return (
     <div className="store-view">
+      {sidebarVisible && (
+        <Sidebar
+          store={store}
+          product={activeProduct}
+          products={products}
+          onSelectProduct={handleSelectProduct}
+          onAddToCart={handleAddToCart}
+          onOpenGallery={mediaSources.length > 0 ? (idx) => openGallery(mediaSources, idx) : null}
+        />
+      )}
       <div className={`store-main ${sidebarVisible ? '' : 'full'}`}>
         <div className="store-3d-container">
           <SceneManager scenery={scenery}>
@@ -104,17 +114,6 @@ export default function StoreView() {
           </div>
         </div>
       </div>
-
-      {sidebarVisible && (
-        <Sidebar
-          store={store}
-          product={activeProduct}
-          products={products}
-          onSelectProduct={handleSelectProduct}
-          onAddToCart={handleAddToCart}
-          onOpenGallery={mediaSources.length > 0 ? (idx) => openGallery(mediaSources, idx) : null}
-        />
-      )}
 
       {modalImages && (
         <ImageModal
