@@ -12,6 +12,7 @@ const subscriptionPlanSchema = new mongoose.Schema({
     recommended: { type: Boolean, default: false },
     badge: { type: String },
     active: { type: Boolean, default: true },
+    contactOnly: { type: Boolean, default: false }, // true = enterprise/brands, WhatsApp only
     order: { type: Number, default: 0 }
 }, { timestamps: true });
 

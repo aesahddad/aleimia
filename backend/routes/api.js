@@ -16,7 +16,11 @@ router.get('/status', async (req, res) => {
             maintenanceMode: settings?.maintenanceMode || false,
             announcement: settings?.announcement || '',
             promoVideoUrl: settings?.promoVideoUrl || '',
-            promoVideoPlansUrl: settings?.promoVideoPlansUrl || ''
+            promoVideoPlansUrl: settings?.promoVideoPlansUrl || '',
+            adminWhatsapp: settings?.adminWhatsapp || '',
+            adminEmail: settings?.adminEmail || '',
+            enablePaymentGateway: settings?.enablePaymentGateway || false,
+            commissionPercent: settings?.commissionPercent || 0
         };
         if (settings?.maintenanceMode) {
             return res.status(503).json({ ...data, status: 'Maintenance' });

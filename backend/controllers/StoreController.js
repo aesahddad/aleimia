@@ -33,9 +33,18 @@ class StoreController {
             const lm = Math.min(100, Math.max(1, parseInt(limit)));
             const skip = (pg - 1) * lm;
             const [stores, total] = await Promise.all([
-                Store.find(query).populate('ownerId', 'username email').sort('-createdAt').skip(skip).limit(lm),
+                Store.find(query).populate('ownerId', 'username email').populate('members', 'username email').sort('-createdAt').skip(skip).limit(lm),
                 Store.countDocuments(query)
             ]);
+
+            // Shuffle randomly for public visitors so all stores get fair visibility
+            if (admin !== 'true') {
+                for (let i = stores.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [stores[i], stores[j]] = [stores[j], stores[i]];
+                }
+            }
+
             res.set('X-Total-Count', total);
             res.set('X-Total-Pages', Math.ceil(total / lm));
             res.json(stores);
@@ -76,7 +85,7 @@ class StoreController {
     static async getOne(req, res) {
         try {
             const { id } = req.params;
-            let store = id.match(/^[0-9a-fA-F]{24}$/) ? await Store.findById(id) : await Store.findOne({ slug: id });
+            let store = id.match(/^[0-9a-fA-F]{24}$/) ? await Store.findById(id).populate('members', 'username email') : await Store.findOne({ slug: id }).populate('members', 'username email');
             
             if (!store) return res.status(404).json({ error: 'Store not found' });
             res.json(store);

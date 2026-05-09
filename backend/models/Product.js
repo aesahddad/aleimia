@@ -11,6 +11,7 @@ const ProductSchema = new mongoose.Schema({
 
     // Assets
     imageUrl: String, // 2D Fallback / Smart Frame Texture
+    galleryImages: [{ type: String }], // معرض الصور
     modelUrl: String, // GLB/GLTF 3D Model
     videoUrl: String, // YouTube or Local
     displayMode: { type: String }, // frame | model

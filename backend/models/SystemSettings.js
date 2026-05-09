@@ -11,10 +11,15 @@ const systemSettingsSchema = new mongoose.Schema({
     myfatoorah: {
         apiKey: { type: String, default: '' },
         merchantId: { type: String, default: '' },
-        mode: { type: String, enum: ['test', 'live'], default: 'test' }
+        mode: { type: String, enum: ['test', 'live'], default: 'test' },
+        platformSupplierCode: { type: Number, default: 0 },
+        partnerSupplierCode: { type: Number, default: 0 }
     },
+    commissionPercent: { type: Number, default: 5 },
     promoVideoUrl: { type: String, default: '' },
     promoVideoPlansUrl: { type: String, default: '' },
+    adminWhatsapp: { type: String, default: '' },
+    adminEmail: { type: String, default: '' },
     zatca: {
         enabled: { type: Boolean, default: false },
         companyName: { type: String, default: '' },

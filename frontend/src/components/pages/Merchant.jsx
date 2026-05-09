@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import client from '../../api/client';
 import FileUploader from '../../components/shared/FileUploader';
+import { openWhatsApp } from '../../utils/whatsapp';
 
 export const MERCHANT_TABS = [
   { id: 'dashboard', label: 'الرئيسية', icon: '📊' },
@@ -13,6 +14,7 @@ export const MERCHANT_TABS = [
 
 export default function Merchant() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'dashboard';
 
@@ -87,6 +89,12 @@ function MerchantDashboard({ user }) {
               <span className="merchant-action-icon">📦</span>
               <span>إضافة منتج</span>
             </div>
+            {stores.length > 0 && (
+              <div className="merchant-action-card" onClick={() => navigate(`/store/${stores[0]._id}`)}>
+                <span className="merchant-action-icon">👁️</span>
+                <span>معاينة متجري</span>
+              </div>
+            )}
             <div className="merchant-action-card" onClick={() => navigate('/merchant?tab=settings')}>
               <span className="merchant-action-icon">⚙️</span>
               <span>الإعدادات</span>
@@ -99,6 +107,7 @@ function MerchantDashboard({ user }) {
 }
 
 function MerchantStores({ user }) {
+  const navigate = useNavigate();
   const [stores, setStores] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editStore, setEditStore] = useState(null);
@@ -109,6 +118,7 @@ function MerchantStores({ user }) {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [activationMode, setActivationMode] = useState('manual');
   const [activating, setActivating] = useState(false);
+  const [adminWhatsapp, setAdminWhatsapp] = useState('');
 
   const loadStores = () => {
     client.get('/stores?admin=true&limit=100').then(r => {
@@ -119,6 +129,7 @@ function MerchantStores({ user }) {
   useEffect(() => { loadStores(); }, [user]);
   useEffect(() => {
     client.get('/subscriptions/plans').then(r => setPlans(r.data)).catch(() => {});
+    client.get('/status').then(r => setAdminWhatsapp(r.data.adminWhatsapp || '')).catch(() => {});
   }, []);
 
   const openCreate = () => {
@@ -189,9 +200,13 @@ function MerchantStores({ user }) {
         }
       }
       await client.post('/subscriptions', { planId: selectedPlan._id, storeId: pendingStore._id });
+      if (activationMode === 'manual' && adminWhatsapp) {
+        const userName = user?.username || user?.email || 'تاجر';
+        const msg = `مرحباً، أنا ${userName}، قمت بإنشاء متجر "${pendingStore.name}" وأرغب في تفعيل باقة "${selectedPlan.name}" (${selectedPlan.price} ريال/${selectedPlan.duration === 'yearly' ? 'سنوي' : 'شهر'}). الرجاء التواصل للتفعيل.`;
+        openWhatsApp(adminWhatsapp, msg);
+      }
       setPendingStore(null);
       loadStores();
-      alert('✅ تم إنشاء المتجر! سيتم تفعيله بعد مراجعة الإدارة.');
     } catch (err) {
       alert('❌ ' + (err.response?.data?.error || err.message));
     } finally {
@@ -329,7 +344,10 @@ function MerchantStores({ user }) {
                   </span>
                 </div>
               </div>
-              <button className="admin-btn" onClick={() => openEdit(store)}>✏️</button>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button className="admin-btn" onClick={() => navigate(`/store/${store._id}`)}>👁️ معاينة</button>
+                <button className="admin-btn" onClick={() => openEdit(store)}>✏️</button>
+              </div>
             </div>
             {store.description && <p>{store.description}</p>}
           </div>
@@ -345,13 +363,16 @@ function MerchantProducts({ user }) {
   const [selectedStore, setSelectedStore] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
-  const [form, setForm] = useState({ name: '', description: '', price: '', imageUrl: '', category: '', modelUrl: '', videoUrl: '', specs: [] });
+  const [form, setForm] = useState({ name: '', description: '', price: '', imageUrl: '', category: '', modelUrl: '', videoUrl: '', displayMode: '', specs: [], galleryImages: [], reviews: [] });
   const [submitting, setSubmitting] = useState(false);
 
   const loadData = () => {
     client.get('/stores?admin=true&limit=100').then(r => {
       const myStores = r.data.filter(s => s.ownerId === user._id || user.role === 'admin');
       setStores(myStores);
+      if (myStores.length > 0 && !selectedStore) {
+        setSelectedStore(myStores[0]._id);
+      }
       myStores.forEach(s => {
         client.get(`/stores/${s._id}/products`).then(r => setProducts(prev => ({ ...prev, [s._id]: r.data })));
       });
@@ -362,7 +383,7 @@ function MerchantProducts({ user }) {
 
   const openCreate = (storeId) => {
     setSelectedStore(storeId);
-    setForm({ name: '', description: '', price: '', imageUrl: '', category: '', modelUrl: '', videoUrl: '', specs: [] });
+    setForm({ name: '', description: '', price: '', imageUrl: '', category: '', modelUrl: '', videoUrl: '', displayMode: '', specs: [], galleryImages: [], reviews: [] });
     setEditProduct(null);
     setShowForm(true);
   };
@@ -377,7 +398,10 @@ function MerchantProducts({ user }) {
       category: product.category || '',
       modelUrl: product.modelUrl || '',
       videoUrl: product.videoUrl || '',
+      displayMode: product.displayMode || '',
       specs: product.specs || [],
+      galleryImages: product.galleryImages || [],
+      reviews: product.reviews || [],
     });
     setEditProduct(product);
     setShowForm(true);
@@ -435,7 +459,10 @@ function MerchantProducts({ user }) {
       {selectedStore && (
         <div className="admin-section-header" style={{ marginTop: 12 }}>
           <h3>منتجات {stores.find(s => s._id === selectedStore)?.name}</h3>
-          <button className="admin-btn approve" onClick={() => openCreate(selectedStore)}>+ إضافة منتج</button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className="admin-btn" onClick={() => window.open(`/store/${selectedStore}`, '_blank')}>👁️ معاينة</button>
+            <button className="admin-btn approve" onClick={() => openCreate(selectedStore)}>+ إضافة منتج</button>
+          </div>
         </div>
       )}
 
@@ -465,6 +492,23 @@ function MerchantProducts({ user }) {
                 {form.imageUrl && <img src={form.imageUrl} alt="" style={{ width: 60, height: 60, borderRadius: 8, marginTop: 4, objectFit: 'cover' }} />}
               </div>
               <div className="admin-field">
+                <label>معرض الصور (صور إضافية)</label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                  <input value={form.galleryInput || ''} onChange={e => setForm(f => ({ ...f, galleryInput: e.target.value }))} placeholder="https://..." style={{ flex: 1 }} />
+                  <FileUploader accept="image" onUpload={(url) => setForm(f => ({ ...f, galleryImages: [...(f.galleryImages || []), url], galleryInput: '' }))} onError={(msg) => alert(msg)} label="رفع" />
+                  <button type="button" className="admin-btn approve" onClick={() => { if (form.galleryInput?.trim()) { setForm(f => ({ ...f, galleryImages: [...(f.galleryImages || []), f.galleryInput.trim()], galleryInput: '' })); } }}>+</button>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {(form.galleryImages || []).map((url, i) => (
+                    <div key={i} style={{ position: 'relative', width: 60, height: 60 }}>
+                      <img src={url} alt="" style={{ width: 60, height: 60, borderRadius: 8, objectFit: 'cover' }} />
+                      <button type="button" className="admin-btn delete" style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, fontSize: 10, padding: 0, borderRadius: '50%' }}
+                        onClick={() => setForm(f => ({ ...f, galleryImages: f.galleryImages.filter((_, j) => j !== i) }))}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="admin-field">
                 <label>التصنيف</label>
                 <input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} />
               </div>
@@ -474,6 +518,14 @@ function MerchantProducts({ user }) {
                   <input value={form.modelUrl} onChange={e => setForm({ ...form, modelUrl: e.target.value })} placeholder="https://..." style={{ flex: 1 }} />
                   <FileUploader accept="model" onUpload={(url) => setForm(f => ({ ...f, modelUrl: url }))} onError={(msg) => alert(msg)} label="رفع" />
                 </div>
+              </div>
+              <div className="admin-field">
+                <label>وضع العرض</label>
+                <select value={form.displayMode} onChange={e => setForm({ ...form, displayMode: e.target.value })} className="admin-input" style={{ width: '100%', padding: '8px' }}>
+                  <option value="">تلقائي (نموذج 3D إن وجد، وإلا الإطار الذكي)</option>
+                  <option value="frame">إطار ذكي (صورة + مواصفات)</option>
+                  <option value="model">نموذج ثلاثي الأبعاد</option>
+                </select>
               </div>
               <div className="admin-field">
                 <label>رابط الفيديو (YouTube أو MP4)</label>
@@ -501,6 +553,20 @@ function MerchantProducts({ user }) {
                     </div>
                   ))}
                   <button type="button" className="admin-btn" onClick={() => setForm({ ...form, specs: [...form.specs, { label: '', value: '' }] })}>+ إضافة مواصفة</button>
+                </div>
+              </div>
+              <div className="admin-field">
+                <label>آراء العملاء (تقييمات)</label>
+                <div className="admin-reviews-list">
+                  {(form.reviews || []).map((r, i) => (
+                    <div key={i} className="admin-review-row" style={{ display: 'flex', gap: 4, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <input value={r.user} onChange={e => { const n = [...form.reviews]; n[i] = { ...n[i], user: e.target.value }; setForm({ ...form, reviews: n }); }} placeholder="الاسم" style={{ flex: 1, minWidth: 60 }} />
+                      <input type="number" min={1} max={5} value={r.rating} onChange={e => { const n = [...form.reviews]; n[i] = { ...n[i], rating: Number(e.target.value) }; setForm({ ...form, reviews: n }); }} placeholder="تقييم (1-5)" style={{ width: 70 }} />
+                      <input value={r.comment || ''} onChange={e => { const n = [...form.reviews]; n[i] = { ...n[i], comment: e.target.value }; setForm({ ...form, reviews: n }); }} placeholder="تعليق" style={{ flex: 2, minWidth: 80 }} />
+                      <button type="button" className="admin-btn delete" onClick={() => setForm({ ...form, reviews: form.reviews.filter((_, j) => j !== i) })}>✕</button>
+                    </div>
+                  ))}
+                  <button type="button" className="admin-btn" onClick={() => setForm({ ...form, reviews: [...(form.reviews || []), { user: '', rating: 5, comment: '', date: new Date().toISOString() }] })}>+ إضافة تقييم</button>
                 </div>
               </div>
               <div className="admin-modal-btns">
@@ -545,14 +611,19 @@ function MerchantSettings({ user }) {
   const [selectedStore, setSelectedStore] = useState(null);
   const [form, setForm] = useState({});
   const [saved, setSaved] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [supplierInfo, setSupplierInfo] = useState({});
+  const [settings, setSettings] = useState(null);
 
   useEffect(() => {
+    client.get('/status').then(r => setSettings(r.data)).catch(() => {});
     client.get('/stores?admin=true&limit=100').then(r => {
       const myStores = r.data.filter(s => s.ownerId === user._id || user.role === 'admin');
       setStores(myStores);
       if (myStores.length > 0) {
         const s = myStores[0];
         setSelectedStore(s._id);
+        setSupplierInfo({ code: s.financial?.supplierCode, registered: s.financial?.supplierRegistered });
         setForm({ name: s.name || '', description: s.description || '', logoUrl: s.logoUrl || '', coverUrl: s.coverUrl || '', whatsappNumber: s.whatsappNumber || s.financial?.whatsapp || '', 'financial.iban': s.financial?.iban || '', 'financial.crNumber': s.financial?.crNumber || '', 'financial.taxNumber': s.financial?.taxNumber || '', 'branding.promoVideo': s.branding?.promoVideo || '', 'branding.specifications': s.branding?.specifications || '' });
       }
     }).catch(() => {});
@@ -562,9 +633,27 @@ function MerchantSettings({ user }) {
     setSelectedStore(id);
     const store = stores.find(s => s._id === id);
     if (store) {
+      setSupplierInfo({ code: store.financial?.supplierCode, registered: store.financial?.supplierRegistered });
       setForm({ name: store.name || '', description: store.description || '', logoUrl: store.logoUrl || '', coverUrl: store.coverUrl || '', whatsappNumber: store.whatsappNumber || store.financial?.whatsapp || '', 'financial.iban': store.financial?.iban || '', 'financial.crNumber': store.financial?.crNumber || '', 'financial.taxNumber': store.financial?.taxNumber || '', 'branding.promoVideo': store.branding?.promoVideo || '', 'branding.specifications': store.branding?.specifications || '' });
     }
     setSaved(false);
+  };
+
+  const handleRegisterSupplier = async () => {
+    if (!selectedStore) return;
+    setRegistering(true);
+    try {
+      const { data } = await client.post('/payments/register-supplier', {
+        storeId: selectedStore,
+        mobile: form.whatsappNumber
+      });
+      setSupplierInfo({ code: data.supplierCode, registered: true });
+      alert('✅ تم تسجيل المورد بنجاح في ماي فاتورة');
+    } catch (e) {
+      alert(e.response?.data?.error || 'فشل تسجيل المورد');
+    } finally {
+      setRegistering(false);
+    }
   };
 
   const updateField = (key, value) => {
@@ -678,6 +767,28 @@ function MerchantSettings({ user }) {
             <label>الرقم الضريبي</label>
             <input value={form['financial.taxNumber']} onChange={e => updateField('financial.taxNumber', e.target.value)} className="admin-input" />
           </div>
+
+          <h3 className="admin-subtitle" style={{ marginTop: 24 }}>الدفع الإلكتروني - MyFatoorah</h3>
+          {settings?.enablePaymentGateway ? (
+            <div className="admin-setting-field">
+              {supplierInfo.registered ? (
+                <div style={{ padding: 12, borderRadius: 8, background: '#dcfce7', color: '#166534', fontSize: 13, fontWeight: 700 }}>
+                  ✅ تم تسجيل المورد - الكود: {supplierInfo.code}
+                </div>
+              ) : (
+                <div>
+                  <p style={{ fontSize: 13, color: 'var(--text-light)', marginBottom: 8 }}>
+                    سجل متجركم كمورد في ماي فاتورة لاستقبال المدفوعات الإلكترونية مباشرة
+                  </p>
+                  <button className="admin-btn approve" onClick={handleRegisterSupplier} disabled={registering} style={{ padding: '10px 20px' }}>
+                    {registering ? 'جاري التسجيل...' : '📝 تسجيل مورد في ماي فاتورة'}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p style={{ fontSize: 12, color: 'var(--text-light)' }}>بوابة الدفع غير مفعلة من قبل الإدارة</p>
+          )}
 
           <button className="admin-btn approve" onClick={handleSave} style={{ padding: '10px 24px', marginTop: 16 }}>
             {saved ? '✓ تم الحفظ' : 'حفظ الإعدادات'}

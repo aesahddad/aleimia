@@ -34,6 +34,16 @@ const admin = (req, res, next) => {
     }
 };
 
+const adminOrHasPerm = (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'Not authorized' });
+    if (req.user.role === 'admin') return next();
+    const p = req.user.permissions;
+    if (p && Object.values(p).some(g => g && Object.values(g).some(v => v === true))) {
+        return next();
+    }
+    res.status(403).json({ error: 'Not authorized' });
+};
+
 const generateAccessToken = (id) => {
     return jwt.sign({ id }, JWT_SECRET, { expiresIn: '15m' });
 };
@@ -46,4 +56,4 @@ const verifyRefreshToken = (token) => {
     return jwt.verify(token, JWT_REFRESH_SECRET);
 };
 
-module.exports = { protect, admin, JWT_SECRET, JWT_REFRESH_SECRET, generateAccessToken, generateRefreshToken, verifyRefreshToken };
+module.exports = { protect, admin, adminOrHasPerm, JWT_SECRET, JWT_REFRESH_SECRET, generateAccessToken, generateRefreshToken, verifyRefreshToken };

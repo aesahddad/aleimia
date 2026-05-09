@@ -1,8 +1,24 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../contexts/CartContext';
 import client from '../../api/client';
+import { openWhatsApp } from '../../utils/whatsapp';
 
 export default function Cart() {
-  const { items, updateQty, total } = useCart();
+  const navigate = useNavigate();
+  const { items, updateQty, total, undoRemove, lastRemoved } = useCart();
+  const [undoTimer, setUndoTimer] = useState(null);
+
+  useEffect(() => {
+    if (lastRemoved) {
+      if (undoTimer) clearTimeout(undoTimer);
+      const timer = setTimeout(() => setUndoTimer(null), 5000);
+      setUndoTimer(timer);
+      return () => clearTimeout(timer);
+    } else {
+      setUndoTimer(null);
+    }
+  }, [lastRemoved]);
 
   const groups = items.reduce((acc, item) => {
     const sid = item.storeId || 'unknown';
@@ -32,12 +48,44 @@ export default function Cart() {
     }
 
     const user = JSON.parse(localStorage.getItem('aleinia_user')) || { username: 'عميل العينية' };
+    const storeLink = `${window.location.origin}/store/${storeId}`;
     let msg = `مرحباً ${group.name}،\nأنا ${user.username}، أريد شراء المنتجات التالية:\n\n`;
     group.items.forEach((item, i) => {
       msg += `${i + 1}. ${item.name} (x${item.qty}) = ${(item.price || 0) * item.qty} ر.س\n`;
     });
     msg += `\n💰 الإجمالي: ${group.total} ريال\n\n`;
-    window.open(`https://wa.me/${whatsapp.replace(/\+/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+    msg += `🔗 رابط المتجر: ${storeLink}`;
+    openWhatsApp(whatsapp, msg);
+  };
+
+  const handleOnlinePayment = async (storeId) => {
+    const group = sortedGroups.find(g => g.id === storeId);
+    if (!group) return;
+
+    const token = localStorage.getItem('aleinia_token');
+    if (!token) {
+      alert('يرجى تسجيل الدخول أولاً للدفع الإلكتروني');
+      return;
+    }
+
+    try {
+      const { data } = await client.post('/payments/cart', {
+        storeId,
+        items: group.items.map(i => ({
+          name: i.name,
+          price: i.price,
+          qty: i.qty,
+          imageUrl: i.imageUrl,
+          productId: i._id
+        })),
+        total: group.total
+      });
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
+      }
+    } catch (e) {
+      alert(e.response?.data?.error || 'فشلت عملية الدفع الإلكتروني');
+    }
   };
 
   if (items.length === 0) {
@@ -61,12 +109,24 @@ export default function Cart() {
         </div>
       </div>
 
+      {lastRemoved && undoTimer && (
+        <div className="cart-undo-bar">
+          <span>تم حذف "{lastRemoved.name}"</span>
+          <button className="cart-undo-btn" onClick={() => { undoRemove(); if (undoTimer) clearTimeout(undoTimer); setUndoTimer(null); }}>
+            تراجع
+          </button>
+        </div>
+      )}
+
       <div className="cart-groups">
         {sortedGroups.map(group => (
           <div key={group.id} className="cart-group">
             <div className="cart-group-header">
               <h2>{group.name}</h2>
-              <span className="cart-group-count">{group.items.length} منتجات</span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button className="cart-back-btn" onClick={() => navigate(`/store/${group.id}`)}>← متابعة التسوق</button>
+                <span className="cart-group-count">{group.items.length} منتجات</span>
+              </div>
             </div>
 
             <div className="cart-group-items">
@@ -77,14 +137,15 @@ export default function Cart() {
                     <h3>{item.name}</h3>
                     <div className="cart-item-meta">
                       <span className="cart-item-price">{item.price} ريال</span>
-                      <span className="cart-item-qty">الكمية: {item.qty}</span>
                     </div>
                   </div>
+                  <div className="cart-item-qty-controls">
+                    <button className="cart-qty-btn" onClick={() => updateQty(item._id, 1)}>+</button>
+                    <span className="cart-qty-value">{item.qty}</span>
+                    <button className="cart-qty-btn" onClick={() => updateQty(item._id, -1)}>{item.qty === 1 ? '🗑️' : '−'}</button>
+                  </div>
                   <div className="cart-item-total">
-                    <span className="cart-item-subtotal">{(item.price || 0) * item.qty} ريال</span>
-                    <button className="cart-item-remove" onClick={() => updateQty(item._id, -1)}>
-                      ✕
-                    </button>
+                    <span className="cart-item-subtotal">{(item.price || 0) * item.qty} ر.س</span>
                   </div>
                 </div>
               ))}
@@ -92,9 +153,14 @@ export default function Cart() {
 
             <div className="cart-group-footer">
               <span>إجمالي الطلب: {group.total} ريال</span>
-              <button className="cart-checkout-btn" onClick={() => handleCheckout(group.id)}>
-                💬 إتمام الطلب عبر واتساب
-              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="cart-checkout-btn" onClick={() => handleCheckout(group.id)}>
+                  💬 واتساب
+                </button>
+                <button className="cart-pay-btn" onClick={() => handleOnlinePayment(group.id)}>
+                  💳 دفع إلكتروني
+                </button>
+              </div>
             </div>
           </div>
         ))}

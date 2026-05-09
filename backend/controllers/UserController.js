@@ -58,6 +58,23 @@ class UserController {
     }
 
     /**
+     * @route PUT /api/users/:id/permissions
+     */
+    static async updatePermissions(req, res) {
+        try {
+            const { permissions } = req.body;
+            if (!permissions || typeof permissions !== 'object') {
+                return res.status(400).json({ error: 'Permissions object required' });
+            }
+            const user = await User.findByIdAndUpdate(req.params.id, { permissions }, { new: true }).select('-password');
+            if (!user) return res.status(404).json({ error: 'User not found' });
+            res.json({ success: true, user });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    }
+
+    /**
      * @route PUT /api/users/:id/status
      */
     static async updateStatus(req, res) {

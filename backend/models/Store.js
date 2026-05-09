@@ -22,7 +22,9 @@ const StoreSchema = new mongoose.Schema({
         iban: { type: String, default: '' },
         crNumber: { type: String, default: '' }, // Commercial Registration
         taxNumber: { type: String, default: '' },
-        whatsapp: { type: String, default: '' } // For Customer Chat/Payments
+        whatsapp: { type: String, default: '' }, // For Customer Chat/Payments
+        supplierCode: { type: Number, default: 0 }, // MyFatoorah supplier code for multi-supplier
+        supplierRegistered: { type: Boolean, default: false }
     },
 
     // Subscription System
@@ -33,8 +35,9 @@ const StoreSchema = new mongoose.Schema({
         endDate: { type: Date }
     },
 
-    // Owner
+    // Owner & Members
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 
     // Metrics (Simple Counters for now)
     stats: {

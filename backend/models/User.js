@@ -40,7 +40,34 @@ const userSchema = new mongoose.Schema({
         },
         users: {
             manage: { type: Boolean, default: false },
-            edit_roles: { type: Boolean, default: false } // Dangerous!
+            edit_roles: { type: Boolean, default: false }
+        },
+        dashboard: {
+            view: { type: Boolean, default: false }
+        },
+        products: {
+            manage: { type: Boolean, default: false },
+            approve: { type: Boolean, default: false },
+            delete: { type: Boolean, default: false }
+        },
+        settings: {
+            view: { type: Boolean, default: false },
+            manage: { type: Boolean, default: false }
+        },
+        subscriptions: {
+            view: { type: Boolean, default: false },
+            manage: { type: Boolean, default: false }
+        },
+        reviews: {
+            manage: { type: Boolean, default: false },
+            delete: { type: Boolean, default: false }
+        },
+        tabs: {
+            manage: { type: Boolean, default: false }
+        },
+        trash: {
+            view: { type: Boolean, default: false },
+            restore: { type: Boolean, default: false }
         }
     }
 

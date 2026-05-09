@@ -1,3 +1,43 @@
+function createSpecCanvas(specs, width, height) {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#000000';
+  ctx.font = 'bold 28px Arial';
+  ctx.textAlign = 'right';
+  ctx.shadowColor = 'rgba(255,255,255,0.7)';
+  ctx.shadowBlur = 4;
+  ctx.fillText('المواصفات', width - 12, 40);
+  ctx.shadowBlur = 0;
+
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(12, 52);
+  ctx.lineTo(width - 12, 52);
+  ctx.stroke();
+
+  ctx.font = '22px Arial';
+  const startY = 82;
+  const lineH = 34;
+  specs.forEach((s, i) => {
+    const y = startY + i * lineH;
+    ctx.fillStyle = '#000000';
+    ctx.textAlign = 'right';
+    ctx.shadowColor = 'rgba(255,255,255,0.6)';
+    ctx.shadowBlur = 3;
+    ctx.fillText(s.label, width - 12, y);
+    ctx.font = 'bold 22px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(s.value, 12, y);
+    ctx.shadowBlur = 0;
+    ctx.font = '22px Arial';
+  });
+  return canvas;
+}
+
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { useThreeScene } from './ThreeContext';
@@ -51,6 +91,19 @@ export default function SmartFrame({ imageUrl, specs = [] }) {
       });
     }
 
+    if (specs.length > 0) {
+      const specCanvas = createSpecCanvas(specs, 800, Math.max(120, 60 + specs.length * 36));
+      const specTexture = new THREE.CanvasTexture(specCanvas);
+      specTexture.colorSpace = THREE.SRGBColorSpace;
+      const h = Math.min(3, 0.8 + specs.length * 0.35);
+      const specGeo = new THREE.PlaneGeometry(2.6, h);
+      const specMat = new THREE.MeshBasicMaterial({ map: specTexture, toneMapped: false, transparent: true, depthWrite: false });
+      const specPlane = new THREE.Mesh(specGeo, specMat);
+      specPlane.rotation.y = Math.PI;
+      specPlane.position.z = -0.35;
+      group.add(specPlane);
+    }
+
     scene.add(group);
     groupRef.current = group;
 
@@ -66,7 +119,7 @@ export default function SmartFrame({ imageUrl, specs = [] }) {
         }
       });
     };
-  }, [ctx, imageUrl]);
+  }, [ctx, imageUrl, specs]);
 
   return null;
 }

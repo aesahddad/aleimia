@@ -40,5 +40,6 @@ export const fetchTabs = () => client.get('/tabs').then(r => r.data);
 export const fetchStores = (params) => client.get('/stores', { params }).then(r => r.data);
 export const fetchStore = (id) => client.get(`/stores/${id}`).then(r => r.data);
 export const fetchProducts = (storeId) => client.get(`/stores/${storeId}/products`).then(r => r.data);
+export const submitReview = (storeId, productId, review) => client.post(`/stores/${storeId}/products/${productId}/reviews`, review).then(r => r.data);
 
 export default client;

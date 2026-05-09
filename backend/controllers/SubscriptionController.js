@@ -31,7 +31,7 @@ class SubscriptionController {
 
     static async updatePlan(req, res) {
         try {
-            const allowed = ['name', 'slug', 'price', 'originalPrice', 'duration', 'discount', 'features', 'highlighted', 'recommended', 'badge', 'active', 'order'];
+            const allowed = ['name', 'slug', 'price', 'originalPrice', 'duration', 'discount', 'features', 'highlighted', 'recommended', 'badge', 'active', 'contactOnly', 'order'];
             const update = {};
             allowed.forEach(f => { if (req.body[f] !== undefined) update[f] = req.body[f]; });
             const plan = await SubscriptionPlan.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
@@ -63,6 +63,7 @@ class SubscriptionController {
                 { name: 'المتجر الذهبي', slug: 'gold', price: 199, originalPrice: 399, duration: 'monthly', discount: '50%', features: ['متاجر غير محدودة', 'منتجات غير محدودة', 'دعم فني VIP', 'إحصائيات متقدمة', 'وسام موثق', 'إعلانات مجانية'], recommended: true, badge: 'الأكثر مبيعاً', order: 4 },
                 { name: 'الباقة السنوية البرونزية', slug: 'bronze-yearly', price: 399, originalPrice: 588, duration: 'yearly', discount: '32%', features: ['متجر واحد', 'منتجات غير محدودة', 'دعم فني', 'توفير 189 ريال'], order: 5 },
                 { name: 'الباقة السنوية الذهبية', slug: 'gold-yearly', price: 1499, originalPrice: 2388, duration: 'yearly', discount: '37%', features: ['متاجر غير محدودة', 'منتجات غير محدودة', 'دعم VIP', 'توفير 889 ريال'], highlighted: true, badge: 'الأفضل', order: 6 },
+                { name: 'الشركات والبرندات', slug: 'enterprise', price: 4999, originalPrice: 9999, duration: 'monthly', discount: '50%', features: ['متاجر غير محدودة', 'منتجات غير محدودة', 'دعم VIP مخصص', 'إعلانات ممولة', 'رفع أولوية', 'استشارات تسويقية', 'مساحة تخزين إضافية', 'تقارير متقدمة', 'حساب مسؤولين متعدد'], highlighted: true, badge: 'للشركات', contactOnly: true, order: 7 },
             ];
 
             await SubscriptionPlan.insertMany(plans);
