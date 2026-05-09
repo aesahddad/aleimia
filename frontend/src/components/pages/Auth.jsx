@@ -6,16 +6,21 @@ import client from '../../api/client';
 export default function Auth() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { login, user } = useAuth();
+  const { login, setAuth, user } = useAuth();
 
   const [mode, setMode] = useState(searchParams.get('mode') || 'login');
+
+  const socialToken = searchParams.get('token');
+  if (socialToken) {
+    setAuth(socialToken, searchParams.get('refreshToken')).then(() => navigate('/'));
+    return <div className="auth-page"><div className="auth-card"><p style={{ textAlign: 'center' }}>جاري تسجيل الدخول...</p></div></div>;
+  }
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [registerAsMerchant, setRegisterAsMerchant] = useState(false);
-  const [socialPopup, setSocialPopup] = useState(null);
   const [resetMode, setResetMode] = useState(false);
   const [resetStep, setResetStep] = useState('request');
   const [resetToken, setResetToken] = useState('');
@@ -170,24 +175,19 @@ export default function Auth() {
         <div className="auth-divider"><span>أو</span></div>
 
         <div className="auth-social">
-          {socialPopup && (
-            <div className="auth-social-popup">
-              <div className="auth-social-popup-content">
-                <span className="auth-social-popup-icon">{socialPopup.icon}</span>
-                <h3>{socialPopup.name}</h3>
-                <p>{socialPopup.description || 'ميزة قيد التطوير، ستكون متاحة قريباً'}</p>
-                <button className="auth-submit" onClick={() => setSocialPopup(null)}>حسناً</button>
-              </div>
-            </div>
-          )}
-          <button className="auth-social-btn google" onClick={() => setSocialPopup({ icon: 'G', name: 'Google', description: 'تسجيل الدخول عبر Google سيكون متاحاً قريباً. يمكنك إعدادClient ID من لوحة الإدارة.' })}>
+          <a href="/api/auth/facebook" className="auth-social-btn facebook">
+            <span className="auth-social-icon">f</span>
+            <span>{mode === 'login' ? 'الدخول عبر فيسبوك' : 'التسجيل عبر فيسبوك'}</span>
+          </a>
+          <a href="/api/auth/google" className="auth-social-btn google">
             <span className="auth-social-icon">G</span>
             <span>{mode === 'login' ? 'الدخول عبر Google' : 'التسجيل عبر Google'}</span>
-          </button>
-          <button className="auth-social-btn apple" onClick={() => setSocialPopup({ icon: '', name: 'Apple', description: 'تسجيل الدخول عبر Apple سيكون متاحاً قريباً.' })}>
-            <span className="auth-social-icon"></span>
-            <span>{mode === 'login' ? 'الدخول عبر Apple' : 'التسجيل عبر Apple'}</span>
-          </button>
+          </a>
+          <a href="/api/auth/linkedin" className="auth-social-btn linkedin">
+            <span className="auth-social-icon">in</span>
+            <span>{mode === 'login' ? 'الدخول عبر LinkedIn' : 'التسجيل عبر LinkedIn'}</span>
+          </a>
+
         </div>
 
         <div className="auth-toggle">

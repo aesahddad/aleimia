@@ -31,6 +31,15 @@ export function AuthProvider({ children }) {
     saveUser(null);
   }, []);
 
+  const setAuth = async (token, refreshToken) => {
+    localStorage.setItem('aleinia_token', token);
+    if (refreshToken) localStorage.setItem('aleinia_refreshToken', refreshToken);
+    try {
+      const { data } = await client.get('/auth/callback', { params: { token, refreshToken } });
+      if (data.success) saveUser(data.user);
+    } catch { logout(); }
+  };
+
   const switchRole = useCallback(() => {
     if (!user) return;
     if (!user.realRole) user.realRole = user.role;
@@ -39,7 +48,7 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, switchRole }}>
+    <AuthContext.Provider value={{ user, login, logout, setAuth, switchRole }}>
       {children}
     </AuthContext.Provider>
   );
