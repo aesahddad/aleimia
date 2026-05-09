@@ -9,12 +9,6 @@ export default function Auth() {
   const { login, setAuth, user } = useAuth();
 
   const [mode, setMode] = useState(searchParams.get('mode') || 'login');
-
-  const socialToken = searchParams.get('token');
-  if (socialToken) {
-    setAuth(socialToken, searchParams.get('refreshToken')).then(() => navigate('/'));
-    return <div className="auth-page"><div className="auth-card"><p style={{ textAlign: 'center' }}>جاري تسجيل الدخول...</p></div></div>;
-  }
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -25,6 +19,12 @@ export default function Auth() {
   const [resetStep, setResetStep] = useState('request');
   const [resetToken, setResetToken] = useState('');
   const [resetMsg, setResetMsg] = useState('');
+
+  const socialToken = searchParams.get('token');
+  if (socialToken) {
+    setAuth(socialToken, searchParams.get('refreshToken')).then(() => navigate('/'));
+    return <div className="auth-page"><div className="auth-card"><p style={{ textAlign: 'center' }}>جاري تسجيل الدخول...</p></div></div>;
+  }
 
   if (user) {
     navigate('/');
@@ -187,7 +187,18 @@ export default function Auth() {
             <span className="auth-social-icon">in</span>
             <span>{mode === 'login' ? 'الدخول عبر LinkedIn' : 'التسجيل عبر LinkedIn'}</span>
           </a>
-
+          <a href="/api/auth/apple" className="auth-social-btn apple">
+            <span className="auth-social-icon"></span>
+            <span>{mode === 'login' ? 'الدخول عبر Apple' : 'التسجيل عبر Apple'}</span>
+          </a>
+          <a href="/api/auth/tiktok" className="auth-social-btn tiktok">
+            <span className="auth-social-icon">♪</span>
+            <span>{mode === 'login' ? 'الدخول عبر TikTok' : 'التسجيل عبر TikTok'}</span>
+          </a>
+          <a href="/api/auth/snapchat" className="auth-social-btn snapchat">
+            <span className="auth-social-icon">👻</span>
+            <span>{mode === 'login' ? 'الدخول عبر Snapchat' : 'التسجيل عبر Snapchat'}</span>
+          </a>
         </div>
 
         <div className="auth-toggle">
