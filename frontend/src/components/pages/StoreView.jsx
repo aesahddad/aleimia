@@ -23,6 +23,7 @@ export default function StoreView() {
   const [sidebarVisible, setSidebarVisible] = useState(window.innerWidth >= 768);
   const [editProduct, setEditProduct] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', price: '', description: '', galleryImages: [] });
+  const [viewMode, setViewMode] = useState('products');
 
   const loadProducts = useCallback(() => {
     return fetchProducts(id).then(p => {
@@ -177,16 +178,44 @@ export default function StoreView() {
               )}
             </div>
             <div className="store-3d-actions">
-              {activeProduct && (
+              {store.websiteUrl && (
+                <button className={`store-action-btn ${viewMode === 'website' ? 'active' : ''}`} onClick={() => setViewMode(v => v === 'website' ? 'products' : 'website')} title="موقع المتجر">
+                  🌐
+                </button>
+              )}
+              {store.aboutUs && (
+                <button className={`store-action-btn ${viewMode === 'about' ? 'active' : ''}`} onClick={() => setViewMode(v => v === 'about' ? 'products' : 'about')} title="عن المتجر">
+                  ℹ️
+                </button>
+              )}
+              {activeProduct && viewMode === 'products' && (
                 <button className="store-action-btn cart-btn" onClick={handleAddToCart} title="أضف إلى السلة">
                   🛒
                 </button>
               )}
-              <button className="store-action-btn" onClick={() => setScenery(s => s === 'modern' ? 'dark' : s === 'dark' ? 'natural' : 'modern')} title="تغيير الخلفية">
-                🎨
-              </button>
+              {viewMode === 'products' && (
+                <button className="store-action-btn" onClick={() => setScenery(s => s === 'modern' ? 'dark' : s === 'dark' ? 'natural' : 'modern')} title="تغيير الخلفية">
+                  🎨
+                </button>
+              )}
             </div>
           </div>
+          {viewMode === 'website' && store.websiteUrl && (
+            <div className="store-iframe-container">
+              <iframe src={store.websiteUrl} title="موقع المتجر" className="store-iframe" sandbox="allow-scripts allow-same-origin allow-popups allow-forms" />
+            </div>
+          )}
+          {viewMode === 'about' && store.aboutUs && (
+            <div className="store-about-container">
+              <div className="store-about-content">
+                {store.imageUrl && <img src={store.imageUrl} alt={store.name} className="store-about-image" />}
+                <h2>{store.name}</h2>
+                {store.description && <p className="store-about-description">{store.description}</p>}
+                <div className="store-about-text">{store.aboutUs}</div>
+              </div>
+            </div>
+          )}
+          {viewMode === 'products' && (
           <div className="store-3d-dock">
             {products.length === 0 ? (
               <div className="dock-empty">لا توجد منتجات</div>
@@ -204,6 +233,7 @@ export default function StoreView() {
               </div>
             ))}
           </div>
+          )}
         </div>
       </div>
 

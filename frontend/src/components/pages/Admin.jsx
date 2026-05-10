@@ -418,7 +418,7 @@ function StoresSection() {
 }
 
 function StoreFormModal({ store, onSave, onClose }) {
-  const [form, setForm] = useState(store || { name: '', description: '', category: '', imageUrl: '', whatsappNumber: '' });
+  const [form, setForm] = useState(store || { name: '', description: '', category: '', imageUrl: '', whatsappNumber: '', websiteUrl: '' });
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -457,6 +457,10 @@ function StoreFormModal({ store, onSave, onClose }) {
           <div className="admin-field">
             <label>رقم واتساب</label>
             <input value={form.whatsappNumber || ''} onChange={e => setForm(f => ({ ...f, whatsappNumber: e.target.value }))} />
+          </div>
+          <div className="admin-field">
+            <label>رابط موقع المتجر (WordPress)</label>
+            <input value={form.websiteUrl || ''} onChange={e => setForm(f => ({ ...f, websiteUrl: e.target.value }))} placeholder="https://..." dir="ltr" />
           </div>
           <div className="admin-modal-btns">
             <button type="submit" className="admin-btn approve" disabled={saving}>
@@ -901,6 +905,11 @@ function SettingsSection() {
         <div className="admin-setting-field">
           <label>فيديو صفحة الاشتراكات (رابط YouTube أو MP4)</label>
           <input className="admin-input" value={draft.promoVideoPlansUrl || ''} onChange={e => updateDraft('promoVideoPlansUrl', e.target.value)} placeholder="https://youtube.com/... أو https://example.com/video.mp4" />
+        </div>
+
+        <div className="admin-setting-field">
+          <label>رابط موقع المنصة (WordPress)</label>
+          <input className="admin-input" value={draft.websiteUrl || ''} onChange={e => updateDraft('websiteUrl', e.target.value)} placeholder="https://..." dir="ltr" />
         </div>
 
         <h3 className="admin-subtitle" style={{ marginTop: 24 }}>معلومات التواصل مع الإدارة</h3>

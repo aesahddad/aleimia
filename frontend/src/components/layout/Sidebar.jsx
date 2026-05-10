@@ -126,6 +126,13 @@ export default function Sidebar({ store, product, products, onSelectProduct, onA
                 🛒 أضف إلى السلة - {product.price} ريال
               </button>
             </div>
+            {store.websiteUrl && (
+              <div className="sidebar-section">
+                <button className="sidebar-action-btn" onClick={() => window.open(store.websiteUrl, '_blank')} style={{ marginTop: 4 }}>
+                  🌐 موقع المتجر
+                </button>
+              </div>
+            )}
 
           {product.videoUrl && (
             <div className="sidebar-section">

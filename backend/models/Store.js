@@ -9,6 +9,8 @@ const StoreSchema = new mongoose.Schema({
     coverUrl: String,
     whatsappNumber: String,
     description: String,
+    websiteUrl: { type: String, default: '' },
+    aboutUs: { type: String, default: '' },
 
     // Store Identity & Config
     theme: { type: Object, default: { color: '#1e3a8a', logo: '' } }, // Blue-900 default

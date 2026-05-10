@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchStores } from '../../api/client';
+import { useApp } from '../../contexts/AppContext';
 import CATEGORIES from '../../config/categories';
 
 export default function Home() {
   const navigate = useNavigate();
+  const { settings } = useApp();
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAbout, setShowAbout] = useState(false);
+  const [showWebsite, setShowWebsite] = useState(false);
   const [category, setCategory] = useState('');
 
   useEffect(() => {
@@ -37,15 +40,24 @@ export default function Home() {
       </div>
 
       <div className="home-toolbar">
-        <button className={`home-toolbar-btn ${!showAbout ? 'active' : ''}`} onClick={() => setShowAbout(false)}>
+        <button className={`home-toolbar-btn ${!showAbout && !showWebsite ? 'active' : ''}`} onClick={() => { setShowAbout(false); setShowWebsite(false); }}>
           🏪 المتاجر
         </button>
-        <button className={`home-toolbar-btn ${showAbout ? 'active' : ''}`} onClick={() => setShowAbout(true)}>
+        <button className={`home-toolbar-btn ${showAbout ? 'active' : ''}`} onClick={() => { setShowAbout(true); setShowWebsite(false); }}>
           ℹ️ من نحن
         </button>
+        {settings?.websiteUrl && (
+          <button className={`home-toolbar-btn ${showWebsite ? 'active' : ''}`} onClick={() => { setShowWebsite(true); setShowAbout(false); }}>
+            🌐 موقعنا
+          </button>
+        )}
       </div>
 
-      {showAbout ? (
+      {showWebsite && settings?.websiteUrl ? (
+        <div className="home-website-container">
+          <iframe src={settings.websiteUrl} title="موقع المنصة" className="home-website-iframe" sandbox="allow-scripts allow-same-origin allow-popups allow-forms" />
+        </div>
+      ) : showAbout ? (
         <div className="home-about">
           <div className="home-about-card">
             <h2>منصة العينية</h2>

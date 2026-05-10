@@ -126,7 +126,7 @@ class StoreController {
             if (store.ownerId?.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
                 return res.status(403).json({ error: 'غير مصرح لك بتعديل هذا المتجر' });
             }
-            const allowed = ['name', 'category', 'description', 'imageUrl', 'theme', 'branding', 'whatsapp', 'financial', 'logoUrl', 'coverUrl', 'whatsappNumber'];
+            const allowed = ['name', 'category', 'description', 'imageUrl', 'theme', 'branding', 'whatsapp', 'financial', 'logoUrl', 'coverUrl', 'whatsappNumber', 'websiteUrl', 'aboutUs'];
             const update = {};
             allowed.forEach(f => { if (req.body[f] !== undefined) update[f] = req.body[f]; });
 

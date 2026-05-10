@@ -57,7 +57,7 @@ class AdminController {
      */
     static async updateSettings(req, res) {
         try {
-            const allowed = ['maintenanceMode', 'announcement', 'allowNewMerchants', 'allowGuestAds', 'enablePaymentGateway', 'enableDeliveryService', 'commissionPercent', 'promoVideoUrl', 'promoVideoPlansUrl', 'adminWhatsapp', 'adminEmail'];
+            const allowed = ['maintenanceMode', 'announcement', 'allowNewMerchants', 'allowGuestAds', 'enablePaymentGateway', 'enableDeliveryService', 'commissionPercent', 'promoVideoUrl', 'promoVideoPlansUrl', 'adminWhatsapp', 'adminEmail', 'websiteUrl'];
             const update = {};
             allowed.forEach(f => { if (req.body[f] !== undefined) update[f] = req.body[f]; });
             const settings = await SystemSettings.findByIdAndUpdate(

@@ -19,6 +19,7 @@ const systemSettingsSchema = new mongoose.Schema({
     promoVideoUrl: { type: String, default: '' },
     promoVideoPlansUrl: { type: String, default: '' },
     adminWhatsapp: { type: String, default: '' },
+    websiteUrl: { type: String, default: '' },
     adminEmail: { type: String, default: '' },
     zatca: {
         enabled: { type: Boolean, default: false },

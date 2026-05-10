@@ -148,6 +148,7 @@ function MerchantStores({ user }) {
       logoUrl: store.logoUrl || store.branding?.logo || '',
       coverUrl: store.coverUrl || store.branding?.cover || '',
       whatsappNumber: store.whatsappNumber || store.financial?.whatsapp || '',
+      websiteUrl: store.websiteUrl || '',
     });
     setEditStore(store);
     setShowForm(true);
@@ -663,7 +664,7 @@ function MerchantSettings({ user }) {
         const s = myStores[0];
         setSelectedStore(s._id);
         setSupplierInfo({ code: s.financial?.supplierCode, registered: s.financial?.supplierRegistered });
-        setForm({ name: s.name || '', description: s.description || '', logoUrl: s.logoUrl || s.branding?.logo || '', coverUrl: s.coverUrl || s.branding?.cover || '', whatsappNumber: s.whatsappNumber || s.financial?.whatsapp || '', 'financial.iban': s.financial?.iban || '', 'financial.crNumber': s.financial?.crNumber || '', 'financial.taxNumber': s.financial?.taxNumber || '', 'branding.promoVideo': s.branding?.promoVideo || '', 'branding.specifications': s.branding?.specifications || '' });
+        setForm({ name: s.name || '', description: s.description || '', logoUrl: s.logoUrl || s.branding?.logo || '', coverUrl: s.coverUrl || s.branding?.cover || '', whatsappNumber: s.whatsappNumber || s.financial?.whatsapp || '', websiteUrl: s.websiteUrl || '', aboutUs: s.aboutUs || '', 'financial.iban': s.financial?.iban || '', 'financial.crNumber': s.financial?.crNumber || '', 'financial.taxNumber': s.financial?.taxNumber || '', 'branding.promoVideo': s.branding?.promoVideo || '', 'branding.specifications': s.branding?.specifications || '' });
       }
     }).catch(() => {});
   }, [user]);
@@ -673,7 +674,7 @@ function MerchantSettings({ user }) {
     const store = stores.find(s => s._id === id);
     if (store) {
       setSupplierInfo({ code: store.financial?.supplierCode, registered: store.financial?.supplierRegistered });
-      setForm({ name: store.name || '', description: store.description || '', logoUrl: store.logoUrl || store.branding?.logo || '', coverUrl: store.coverUrl || store.branding?.cover || '', whatsappNumber: store.whatsappNumber || store.financial?.whatsapp || '', 'financial.iban': store.financial?.iban || '', 'financial.crNumber': store.financial?.crNumber || '', 'financial.taxNumber': store.financial?.taxNumber || '', 'branding.promoVideo': store.branding?.promoVideo || '', 'branding.specifications': store.branding?.specifications || '' });
+      setForm({ name: store.name || '', description: store.description || '', logoUrl: store.logoUrl || store.branding?.logo || '', coverUrl: store.coverUrl || store.branding?.cover || '', whatsappNumber: store.whatsappNumber || store.financial?.whatsapp || '', websiteUrl: store.websiteUrl || '', aboutUs: store.aboutUs || '', 'financial.iban': store.financial?.iban || '', 'financial.crNumber': store.financial?.crNumber || '', 'financial.taxNumber': store.financial?.taxNumber || '', 'branding.promoVideo': store.branding?.promoVideo || '', 'branding.specifications': store.branding?.specifications || '' });
     }
     setSaved(false);
   };
@@ -708,6 +709,8 @@ function MerchantSettings({ user }) {
         logoUrl: form.logoUrl,
         coverUrl: form.coverUrl,
         whatsappNumber: form.whatsappNumber,
+        websiteUrl: form.websiteUrl,
+        aboutUs: form.aboutUs,
         financial: {
           iban: form['financial.iban'],
           crNumber: form['financial.crNumber'],
@@ -757,6 +760,10 @@ function MerchantSettings({ user }) {
             <label>الوصف</label>
             <textarea value={form.description} onChange={e => updateField('description', e.target.value)} rows={3} className="admin-textarea" />
           </div>
+          <div className="admin-setting-field">
+            <label>رابط موقع المتجر (WordPress)</label>
+            <input value={form.websiteUrl} onChange={e => updateField('websiteUrl', e.target.value)} className="admin-input" placeholder="https://..." dir="ltr" />
+          </div>
 
           <h3 className="admin-subtitle" style={{ marginTop: 24 }}>العلامة التجارية</h3>
           <div className="admin-setting-field">
@@ -785,6 +792,10 @@ function MerchantSettings({ user }) {
           <div className="admin-setting-field">
             <label>مواصفات المتجر</label>
             <textarea value={form['branding.specifications']} onChange={e => updateField('branding.specifications', e.target.value)} rows={3} className="admin-textarea" placeholder="وصف كامل للمتجر ليظهر في الشريط الجانبي" />
+          </div>
+          <div className="admin-setting-field">
+            <label>عن المتجر (من نحن)</label>
+            <textarea value={form.aboutUs} onChange={e => updateField('aboutUs', e.target.value)} rows={4} className="admin-textarea" placeholder="اكتب قصة متجرك، رؤيتك، ورسالتك..." />
           </div>
 
           <h3 className="admin-subtitle" style={{ marginTop: 24 }}>معلومات التواصل</h3>
