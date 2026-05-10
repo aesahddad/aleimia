@@ -11,6 +11,7 @@ router.use(protect);
 router.get('/stats', hasPerm('dashboard.view'), (req, res) => AdminController.getStats(req, res));
 router.get('/settings', hasPerm('settings.view'), (req, res) => AdminController.getSettings(req, res));
 router.put('/settings', hasPerm('settings.manage'), (req, res) => AdminController.updateSettings(req, res));
+router.post('/register-partner-supplier', hasPerm('settings.manage'), (req, res) => AdminController.registerPartnerSupplier(req, res));
 
 router.get('/reviews', hasPerm('reviews.manage'), async (req, res) => {
     try {

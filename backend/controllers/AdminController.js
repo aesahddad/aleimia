@@ -53,6 +53,44 @@ class AdminController {
     }
 
     /**
+     * @route POST /api/admin/register-partner-supplier
+     */
+    static async registerPartnerSupplier(req, res) {
+        try {
+            const { name, mobile, email } = req.body;
+            const settings = await SystemSettings.findById('global_settings');
+            if (!settings?.enablePaymentGateway || !settings?.myfatoorah?.apiKey) {
+                return res.status(400).json({ error: 'بوابة الدفع غير مفعلة' });
+            }
+            const baseUrl = settings.myfatoorah?.mode === 'live'
+                ? 'https://api.myfatoorah.com'
+                : 'https://apitest.myfatoorah.com';
+            const mfRes = await fetch(`${baseUrl}/v2/CreateSupplier`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${settings.myfatoorah.apiKey}`
+                },
+                body: JSON.stringify({
+                    SupplierName: name || 'الشريك',
+                    SupplierMobile: mobile || '',
+                    SupplierEmail: email || ''
+                })
+            });
+            const mfData = await mfRes.json();
+            if (!mfRes.ok) return res.status(500).json({ error: mfData.Message || 'فشل تسجيل الشريك' });
+            const supplierCode = mfData.SupplierCode || mfData.Data?.SupplierCode;
+            if (!supplierCode) return res.status(500).json({ error: 'لم يتم الحصول على كود الشريك' });
+            await SystemSettings.findByIdAndUpdate('global_settings', {
+                'myfatoorah.partnerSupplierCode': supplierCode
+            }, { new: true, upsert: true });
+            res.json({ success: true, supplierCode, message: `✅ تم تسجيل ${name || 'الشريك'} برقم ${supplierCode}` });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    }
+
+    /**
      * @route PUT /api/admin/settings
      */
     static async updateSettings(req, res) {

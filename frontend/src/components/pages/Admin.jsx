@@ -817,9 +817,10 @@ function ModerationSection() {
 }
 
 function SettingsSection() {
-  const [settings, setSettings] = useState(null);
+      const [settings, setSettings] = useState(null);
   const [draft, setDraft] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [partnerRegistering, setPartnerRegistering] = useState(false);
 
   useEffect(() => {
     client.get('/admin/settings').then(r => { setSettings(r.data); setDraft(r.data); }).catch(() => {});
@@ -951,11 +952,49 @@ function SettingsSection() {
         <h3 className="admin-subtitle" style={{ marginTop: 24 }}>الموردون المتعددون - MultiSupplier</h3>
         <div className="admin-setting-field">
           <label>كود مورد المنصة (حرية ابداع)</label>
-          <input className="admin-input" type="number" value={draft.myfatoorah?.platformSupplierCode || 0} onChange={e => updateDraftNested('myfatoorah.platformSupplierCode', Number(e.target.value))} />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input className="admin-input" type="number" value={draft.myfatoorah?.platformSupplierCode || 0} onChange={e => updateDraftNested('myfatoorah.platformSupplierCode', Number(e.target.value))} style={{ flex: 1 }} />
+            <button className="admin-btn approve" disabled={partnerRegistering} onClick={async () => {
+              setPartnerRegistering(true);
+              try {
+                const name = prompt('اسم المنصة:', 'حرية إبداع');
+                if (!name) { setPartnerRegistering(false); return; }
+                const { data } = await client.post('/admin/register-partner-supplier', { name });
+                const { data: settingsData } = await client.get('/admin/settings');
+                setSettings(settingsData);
+                setDraft(settingsData);
+                alert(data.message);
+              } catch (e) {
+                alert(e.response?.data?.error || 'فشل تسجيل المنصة');
+              }
+              setPartnerRegistering(false);
+            }}>
+              {partnerRegistering ? '...جاري' : '🔄 تسجيل'}
+            </button>
+          </div>
         </div>
         <div className="admin-setting-field">
           <label>كود مورد الشريك (رياحين المدينة)</label>
-          <input className="admin-input" type="number" value={draft.myfatoorah?.partnerSupplierCode || 0} onChange={e => updateDraftNested('myfatoorah.partnerSupplierCode', Number(e.target.value))} />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input className="admin-input" type="number" value={draft.myfatoorah?.partnerSupplierCode || 0} onChange={e => updateDraftNested('myfatoorah.partnerSupplierCode', Number(e.target.value))} style={{ flex: 1 }} />
+            <button className="admin-btn approve" disabled={partnerRegistering} onClick={async () => {
+              setPartnerRegistering(true);
+              try {
+                const name = prompt('اسم الشريك:', 'رياحين المدينة');
+                if (!name) { setPartnerRegistering(false); return; }
+                const { data } = await client.post('/admin/register-partner-supplier', { name });
+                const { data: settingsData } = await client.get('/admin/settings');
+                setSettings(settingsData);
+                setDraft(settingsData);
+                alert(data.message);
+              } catch (e) {
+                alert(e.response?.data?.error || 'فشل تسجيل الشريك');
+              }
+              setPartnerRegistering(false);
+            }}>
+              {partnerRegistering ? '...جاري' : '🔄 تسجيل'}
+            </button>
+          </div>
         </div>
         <div className="admin-setting-field">
           <label>نسبة عمولة المنصة (%)</label>
