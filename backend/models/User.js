@@ -3,12 +3,23 @@ const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    email: { type: String, required: true },
+    password: { type: String, default: '' },
     role: { type: String, enum: ['customer', 'merchant', 'admin'], default: 'customer' },
     status: { type: String, enum: ['active', 'banned'], default: 'active' },
+    avatar: { type: String, default: '' },
     resetPasswordToken: { type: String },
     resetPasswordExpire: { type: Date },
+
+    // Social Login IDs
+    social: {
+        facebookId: { type: String },
+        linkedinId: { type: String },
+        tiktokId: { type: String },
+        snapchatId: { type: String },
+        googleId: { type: String },
+        appleId: { type: String }
+    },
 
     // Store Relationship (For Merchants)
     storeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Store' },
@@ -69,7 +80,10 @@ const userSchema = new mongoose.Schema({
             view: { type: Boolean, default: false },
             restore: { type: Boolean, default: false }
         }
-    }
+    },
+
+    // Authentication Hardening
+    refreshTokens: [{ type: String }]
 
 }, { timestamps: true });
 

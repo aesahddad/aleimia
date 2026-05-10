@@ -5,6 +5,13 @@ const SubscriptionPlan = require('../models/SubscriptionPlan');
 const Order = require('../models/Order');
 const logger = require('../shared/logger');
 
+const ALLOWED_DOMAINS = ['aleinia.com', 'www.aleinia.com', 'localhost:3000', 'localhost:3001'];
+const getSafeHost = (req) => {
+    const host = req.get('host') || 'aleinia.com';
+    const isAllowed = ALLOWED_DOMAINS.some(d => host === d || host.endsWith('.' + d));
+    return isAllowed ? host : 'aleinia.com';
+};
+
 function getMfApiUrl(settings) {
   return settings.myfatoorah?.mode === 'live'
     ? 'https://api.myfatoorah.com'
@@ -98,8 +105,8 @@ class PaymentController {
                 CustomerName: req.user.username || req.user.email,
                 NotificationOption: 'Lnk',
                 InvoiceValue: amount,
-                CallbackUrl: callbackUrl || `${req.protocol}://${req.get('host')}/api/payments/callback`,
-                ErrorUrl: `${req.protocol}://${req.get('host')}/merchant?tab=stores`,
+                CallbackUrl: callbackUrl || `${req.protocol}://${getSafeHost(req)}/api/payments/callback`,
+                ErrorUrl: `${req.protocol}://${getSafeHost(req)}/merchant?tab=stores`,
                 Language: 'ar',
                 CustomerEmail: req.user.email,
                 MobileCountryCode: '+966',
@@ -164,8 +171,8 @@ class PaymentController {
                 CustomerName: customerName || req.user?.username || 'عميل',
                 NotificationOption: 'Lnk',
                 InvoiceValue: amount,
-                CallbackUrl: `${req.protocol}://${req.get('host')}/api/payments/callback`,
-                ErrorUrl: `${req.protocol}://${req.get('host')}/store/${storeId}?payment=failed`,
+                CallbackUrl: `${req.protocol}://${getSafeHost(req)}/api/payments/callback`,
+                ErrorUrl: `${req.protocol}://${getSafeHost(req)}/store/${storeId}?payment=failed`,
                 Language: 'ar',
                 CustomerEmail: req.user?.email || '',
                 MobileCountryCode: '+966',
@@ -243,11 +250,11 @@ class PaymentController {
                 if (id) {
                     if (isCartOrder) {
                         await Order.findOneAndUpdate({ storeId: id, status: 'pending' }, { status: 'failed' });
-                        return res.redirect(`${req.protocol}://${req.get('host')}/store/${id}?payment=failed`);
+                        return res.redirect(`${req.protocol}://${getSafeHost(req)}/store/${id}?payment=failed`);
                     }
                     await Store.findByIdAndUpdate(id, { status: 'pending' });
                 }
-                return res.redirect(`${req.protocol}://${req.get('host')}/merchant?tab=stores&payment=failed`);
+                    return res.redirect(`${req.protocol}://${getSafeHost(req)}/merchant?tab=stores&payment=failed`);
             }
 
             let mfData;
@@ -269,24 +276,24 @@ class PaymentController {
                     { new: true }
                 );
                 const sid = order?.storeId || OrderReference?.replace('CART-', '')?.split('-')[0];
-                return res.redirect(`${req.protocol}://${req.get('host')}/store/${sid}?payment=${isPaid ? 'success' : 'failed'}`);
+                return res.redirect(`${req.protocol}://${getSafeHost(req)}/store/${sid}?payment=${isPaid ? 'success' : 'failed'}`);
             }
 
             const subscription = await Subscription.findOne({ paymentReference: ref });
-            if (!subscription) return res.redirect(`${req.protocol}://${req.get('host')}/merchant?tab=stores&payment=notfound`);
+            if (!subscription) return res.redirect(`${req.protocol}://${getSafeHost(req)}/merchant?tab=stores&payment=notfound`);
 
             if (isPaid) {
                 subscription.status = 'active';
                 await subscription.save();
                 await Store.findByIdAndUpdate(subscription.storeId, { status: 'active' });
-                return res.redirect(`${req.protocol}://${req.get('host')}/merchant?tab=stores&payment=success`);
+                return res.redirect(`${req.protocol}://${getSafeHost(req)}/merchant?tab=stores&payment=success`);
             }
 
             await Store.findByIdAndUpdate(subscription.storeId, { status: 'pending' });
-            res.redirect(`${req.protocol}://${req.get('host')}/merchant?tab=stores&payment=failed`);
+            res.redirect(`${req.protocol}://${getSafeHost(req)}/merchant?tab=stores&payment=failed`);
         } catch (e) {
             logger.error('Payment Callback Error:', e);
-            res.redirect(`${req.protocol}://${req.get('host')}/merchant?tab=stores&payment=error`);
+            res.redirect(`${req.protocol}://${getSafeHost(req)}/merchant?tab=stores&payment=error`);
         }
     }
 }

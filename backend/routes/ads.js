@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const AdController = require('../controllers/AdController');
 const { protect, admin } = require('../middleware/auth');
+const { validate, adSchema } = require('../middleware/validator');
 const multer = require('multer');
 const fs = require('fs-extra');
 
@@ -25,7 +26,7 @@ router.post('/', (req, res, next) => {
         if (err) return res.status(400).json({ error: err.message });
         next();
     });
-}, (req, res) => AdController.create(req, res));
+}, validate(adSchema), (req, res) => AdController.create(req, res));
 
 router.put('/:id/status', protect, admin, (req, res) => AdController.updateStatus(req, res));
 router.delete('/:id', protect, admin, (req, res) => AdController.delete(req, res));

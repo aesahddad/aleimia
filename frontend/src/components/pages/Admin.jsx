@@ -11,6 +11,7 @@ const TABS = [
   { id: 'stores', label: 'المتاجر', icon: '🏪' },
   { id: 'ads', label: 'الإعلانات', icon: '📢' },
   { id: 'users', label: 'الأعضاء', icon: '👥' },
+  { id: 'orders', label: 'الطلبات', icon: '📋' },
   { id: 'moderation', label: 'الرقابة', icon: '🛡️' },
   { id: 'settings', label: 'الإعدادات', icon: '⚙️' },
   { id: 'trash', label: 'المحذوفات', icon: '🗑️' },
@@ -25,6 +26,7 @@ const TAB_PERM_MAP = {
   stores: 'stores',
   ads: 'ads',
   users: 'users',
+  orders: 'settings',
   moderation: 'moderation',
   settings: 'settings',
   trash: 'trash',
@@ -53,8 +55,8 @@ export default function Admin() {
   const [searchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'stats';
 
-  const isSuperAdmin = user?.role === 'admin';
   const perms = user?.permissions || {};
+  const isSuperAdmin = perms.ops?.manage === true;
   const hasAdminAccess = isSuperAdmin || Object.keys(TAB_PERM_MAP).some(t => canAccessTab(perms, t));
 
   if (!user || !hasAdminAccess) {
@@ -88,6 +90,7 @@ export default function Admin() {
       {tab === 'subscriptions' && <SubscriptionsSection />}
       {tab === 'roles' && <RolesSection />}
       {tab === 'reviews' && <ReviewsSection />}
+      {tab === 'orders' && <OrdersSection />}
     </div>
   );
 }
@@ -519,6 +522,7 @@ function UsersSection() {
   const [filter, setFilter] = useState('all');
   const [linkUser, setLinkUser] = useState(null);
   const [permsUser, setPermsUser] = useState(null);
+  const [editUser, setEditUser] = useState(null);
 
   const loadData = async () => {
     const [u, s] = await Promise.all([
@@ -533,8 +537,8 @@ function UsersSection() {
 
   const updateRole = async (id, role) => {
     try {
-      await client.put(`/users/${id}/role`, { role });
-      setUsers(prev => prev.map(u => u._id === id ? { ...u, role } : u));
+      const { data } = await client.put(`/users/${id}/role`, { role });
+      setUsers(prev => prev.map(u => u._id === id ? { ...u, role: data.user.role, permissions: data.user.permissions } : u));
     } catch (e) {
       alert('فشل تحديث الصلاحية');
     }
@@ -652,6 +656,7 @@ function UsersSection() {
             <div className="admin-item-actions">
               <button className="admin-btn" onClick={() => setLinkUser(u)} title="ربط بمتجر">🔗 ربط</button>
               <button className="admin-btn" onClick={() => setPermsUser({ ...u })} title="الصلاحيات">🔑</button>
+              <button className="admin-btn" onClick={() => setEditUser({ _id: u._id, username: u.username, email: u.email })} title="تعديل">✏️</button>
               <select
                 className="admin-role-select"
                 value={u.role}
@@ -699,12 +704,16 @@ function UsersSection() {
         </div>
       )}
 
+      {editUser && (
+        <EditUserModal user={editUser} onClose={() => { setEditUser(null); loadData(); }} />
+      )}
+
       {permsUser && (
         <div className="admin-modal-overlay" onClick={() => setPermsUser(null)}>
           <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
             <h3>🔑 صلاحيات {permsUser.username || permsUser.email}</h3>
             <div className="perms-grid" style={{ marginTop: 8 }}>
-              {Object.entries(PERMISSION_GROUPS).map(([groupKey, group]) => (
+              {Object.entries(PERMISSION_GROUPS).filter(([, g]) => g.roles.includes(permsUser.role)).map(([groupKey, group]) => (
                 <div key={groupKey} className="perms-group">
                   <div className="perms-group-header">
                     <span>{group.icon} {group.label}</span>
@@ -1296,19 +1305,152 @@ function ReviewsSection() {
   );
 }
 
+function OrdersSection() {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  const fetchOrders = () => {
+    setLoading(true);
+    client.get('/admin/orders', { params: { status: filterStatus !== 'all' ? filterStatus : undefined } })
+      .then(r => setOrders(r.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchOrders(); }, [filterStatus]);
+
+  const updateStatus = async (id, status) => {
+    try {
+      await client.put(`/admin/orders/${id}/status`, { status });
+      fetchOrders();
+    } catch { alert('فشل تحديث حالة الطلب'); }
+  };
+
+  const checkPayment = async (ref) => {
+    try {
+      const { data } = await client.post(`/admin/payments/check/${ref}`);
+      alert(JSON.stringify(data.Data || data, null, 2));
+    } catch { alert('فشل التحقق من حالة الدفع'); }
+  };
+
+  return (
+    <div className="admin-section">
+      <div className="admin-section-header">
+        <h2>الطلبات</h2>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="admin-input" style={{ width: 150 }}>
+          <option value="all">كل الحالات</option>
+          <option value="pending">قيد الانتظار</option>
+          <option value="paid">مدفوع</option>
+          <option value="failed">فشل</option>
+        </select>
+      </div>
+      <div className="admin-list">
+        {loading ? <div className="admin-empty">جاري التحميل...</div> : orders.length === 0 ? (
+          <div className="admin-empty">لا توجد طلبات</div>
+        ) : orders.map(order => (
+          <div key={order._id} className="admin-item">
+            <div className="admin-item-info">
+              <strong>{order.customerName || 'غير معروف'}</strong>
+              <span className="admin-meta">{order.customerEmail} {order.customerPhone ? `| ${order.customerPhone}` : ''}</span>
+              <span className="admin-meta">المبلغ: {order.total} ر.س | المتجر: {order.storeId?.name || 'غير معروف'}</span>
+              {order.items?.length > 0 && (
+                <span className="admin-meta">المنتجات: {order.items.map(i => i.name).join('، ')}</span>
+              )}
+              <span className={`status-badge status-${order.status}`}>
+                {{ pending: 'قيد الانتظار', paid: 'مدفوع', failed: 'فشل' }[order.status] || order.status}
+              </span>
+              <span className="admin-meta">{new Date(order.createdAt).toLocaleDateString('ar-SA')}</span>
+            </div>
+            <div className="admin-item-actions">
+              {order.paymentReference && (
+                <button className="admin-btn" onClick={() => checkPayment(order.paymentReference)}>🔍 تحقق</button>
+              )}
+              {order.status === 'pending' && (
+                <button className="admin-btn approve" onClick={() => updateStatus(order._id, 'paid')}>✅ تأكيد</button>
+              )}
+              {order.status !== 'failed' && order.status !== 'cancelled' && (
+                <button className="admin-btn delete" onClick={() => updateStatus(order._id, 'cancelled')}>❌ إلغاء</button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EditUserModal({ user, onClose }) {
+  const [username, setUsername] = useState(user?.username || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      const body = {};
+      if (username !== user.username) body.username = username;
+      if (email !== user.email) body.email = email;
+      if (password) body.password = password;
+      if (Object.keys(body).length === 0) { setError('لا توجد تغييرات'); setLoading(false); return; }
+      await client.put(`/users/${user._id}`, body);
+      setSuccess('✅ تم الحفظ');
+      setTimeout(onClose, 1000);
+    } catch (e) {
+      setError(e.response?.data?.error || 'فشل الحفظ');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="admin-modal-overlay" onClick={onClose}>
+      <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+        <h3>✏️ تعديل العضو</h3>
+        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+          <div className="auth-field">
+            <label>الاسم</label>
+            <input type="text" value={username} onChange={e => setUsername(e.target.value)} />
+          </div>
+          <div className="auth-field">
+            <label>البريد الإلكتروني</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} />
+          </div>
+          <div className="auth-field">
+            <label>كلمة المرور الجديدة</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="اترك فارغاً إذا لا تريد التغيير" />
+          </div>
+          {error && <div className="auth-error">{error}</div>}
+          {success && <div style={{ color: '#22c55e', fontSize: 13 }}>{success}</div>}
+          <div className="admin-modal-btns">
+            <button type="submit" className="admin-btn approve" disabled={loading}>{loading ? 'جاري...' : 'حفظ'}</button>
+            <button type="button" className="admin-btn" onClick={onClose}>إلغاء</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 const PERMISSION_GROUPS = {
-  stores: { label: 'المتاجر', icon: '🏪', perms: { manage: 'إدارة', simulate: 'محاكاة', activate: 'تفعيل', freeze: 'تجميد', delete: 'حذف' } },
-  ads: { label: 'الإعلانات', icon: '📢', perms: { manage: 'إدارة', approve: 'موافقة', reject: 'رفض', delete: 'حذف' } },
-  products: { label: 'المنتجات', icon: '📦', perms: { manage: 'إدارة', approve: 'موافقة', delete: 'حذف' } },
-  ops: { label: 'العمليات', icon: '⚙️', perms: { manage: 'إدارة', tickets: 'التذاكر', refunds: 'المبالغ المستردة' } },
-  moderation: { label: 'الرقابة', icon: '🛡️', perms: { manage: 'إدارة', content_review: 'مراجعة المحتوى', ban_users: 'حظر الأعضاء' } },
-  users: { label: 'الأعضاء', icon: '👥', perms: { manage: 'إدارة', edit_roles: 'تعديل الصلاحيات' } },
-  subscriptions: { label: 'الاشتراكات', icon: '💎', perms: { view: 'عرض', manage: 'إدارة' } },
-  reviews: { label: 'التقييمات', icon: '⭐', perms: { manage: 'إدارة', delete: 'حذف' } },
-  tabs: { label: 'التبويبات', icon: '📑', perms: { manage: 'إدارة' } },
-  settings: { label: 'الإعدادات', icon: '⚙️', perms: { view: 'عرض', manage: 'إدارة' } },
-  trash: { label: 'المحذوفات', icon: '🗑️', perms: { view: 'عرض', restore: 'استعادة' } },
-  dashboard: { label: 'الإحصائيات', icon: '📊', perms: { view: 'عرض' } }
+  stores: { label: 'المتاجر', icon: '🏪', perms: { manage: 'إدارة', simulate: 'محاكاة', activate: 'تفعيل', freeze: 'تجميد', delete: 'حذف' }, roles: ['admin', 'merchant'] },
+  ads: { label: 'الإعلانات', icon: '📢', perms: { manage: 'إدارة', approve: 'موافقة', reject: 'رفض', delete: 'حذف' }, roles: ['admin', 'merchant'] },
+  products: { label: 'المنتجات', icon: '📦', perms: { manage: 'إدارة', approve: 'موافقة', delete: 'حذف' }, roles: ['admin', 'merchant'] },
+  reviews: { label: 'التقييمات', icon: '⭐', perms: { manage: 'إدارة', delete: 'حذف' }, roles: ['admin', 'merchant'] },
+  dashboard: { label: 'الإحصائيات', icon: '📊', perms: { view: 'عرض' }, roles: ['admin', 'merchant'] },
+  ops: { label: 'العمليات', icon: '⚙️', perms: { manage: 'إدارة', tickets: 'التذاكر', refunds: 'المبالغ المستردة' }, roles: ['admin'] },
+  moderation: { label: 'الرقابة', icon: '🛡️', perms: { manage: 'إدارة', content_review: 'مراجعة المحتوى', ban_users: 'حظر الأعضاء' }, roles: ['admin'] },
+  users: { label: 'الأعضاء', icon: '👥', perms: { manage: 'إدارة', edit_roles: 'تعديل الصلاحيات' }, roles: ['admin'] },
+  subscriptions: { label: 'الاشتراكات', icon: '💎', perms: { view: 'عرض', manage: 'إدارة' }, roles: ['admin'] },
+  tabs: { label: 'التبويبات', icon: '📑', perms: { manage: 'إدارة' }, roles: ['admin'] },
+  settings: { label: 'الإعدادات', icon: '⚙️', perms: { view: 'عرض', manage: 'إدارة' }, roles: ['admin'] },
+  trash: { label: 'المحذوفات', icon: '🗑️', perms: { view: 'عرض', restore: 'استعادة' }, roles: ['admin'] }
 };
 
 function RolesSection() {
@@ -1370,7 +1512,7 @@ function RolesSection() {
               </div>
             </div>
             <div className="perms-grid">
-              {Object.entries(PERMISSION_GROUPS).map(([groupKey, group]) => (
+              {Object.entries(PERMISSION_GROUPS).filter(([, g]) => g.roles.includes(u.role)).map(([groupKey, group]) => (
                 <div key={groupKey} className="perms-group">
                   <div className="perms-group-header">
                     <span>{group.icon} {group.label}</span>

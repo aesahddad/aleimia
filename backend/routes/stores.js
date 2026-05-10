@@ -2,11 +2,12 @@ const express = require('express');
 const router = express.Router();
 const StoreController = require('../controllers/StoreController');
 const Store = require('../models/Store');
-const { protect, admin, adminOrHasPerm } = require('../middleware/auth');
+const { protect, admin, hasPerm } = require('../middleware/auth');
+const { validate, storeSchema, productSchema } = require('../middleware/validator');
 
 // --- STORE APIs ---
 router.get('/', (req, res) => StoreController.getAll(req, res));
-router.post('/', protect, (req, res) => StoreController.create(req, res));
+router.post('/', protect, validate(storeSchema), (req, res) => StoreController.create(req, res));
 router.get('/:id', (req, res) => StoreController.getOne(req, res));
 router.put('/:id', protect, (req, res) => StoreController.update(req, res));
 router.put('/:id/status', protect, admin, (req, res) => StoreController.updateStatus(req, res));
@@ -23,8 +24,13 @@ router.get('/:id/products', async (req, res) => {
     }
 });
 
-router.post('/products', protect, async (req, res) => {
+router.post('/products', protect, validate(productSchema), async (req, res) => {
     try {
+        const store = await Store.findById(req.body.storeId);
+        if (!store) return res.status(404).json({ error: 'Store not found' });
+        if (store.ownerId?.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'غير مصرح لك بإضافة منتجات لهذا المتجر' });
+        }
         const product = await Product.create(req.body);
         res.json({ success: true, product });
     } catch (e) {
@@ -32,8 +38,13 @@ router.post('/products', protect, async (req, res) => {
     }
 });
 
-router.put('/:id/products/:productId', protect, async (req, res) => {
+router.put('/:id/products/:productId', protect, validate(productSchema), async (req, res) => {
     try {
+        const store = await Store.findById(req.params.id);
+        if (!store) return res.status(404).json({ error: 'Store not found' });
+        if (store.ownerId?.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'غير مصرح لك بتعديل هذا المنتج' });
+        }
         const product = await Product.findById(req.params.productId);
         if (!product) return res.status(404).json({ error: 'Product not found' });
         Object.assign(product, req.body);
@@ -46,6 +57,11 @@ router.put('/:id/products/:productId', protect, async (req, res) => {
 
 router.delete('/:id/products/:productId', protect, async (req, res) => {
     try {
+        const store = await Store.findById(req.params.id);
+        if (!store) return res.status(404).json({ error: 'Store not found' });
+        if (store.ownerId?.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'غير مصرح لك بحذف هذا المنتج' });
+        }
         const product = await Product.findByIdAndDelete(req.params.productId);
         if (!product) return res.status(404).json({ error: 'Product not found' });
         res.json({ success: true, message: 'Product deleted' });
@@ -54,10 +70,11 @@ router.delete('/:id/products/:productId', protect, async (req, res) => {
     }
 });
 
-router.post('/:id/products/:productId/reviews', async (req, res) => {
+router.post('/:id/products/:productId/reviews', protect, async (req, res) => {
     try {
-        const { user, rating, comment } = req.body;
-        if (!user || !rating) return res.status(400).json({ error: 'الاسم والتقييم مطلوبان' });
+        const { rating, comment } = req.body;
+        if (!rating) return res.status(400).json({ error: 'التقييم مطلوب' });
+        const user = req.user.username;
         const product = await Product.findByIdAndUpdate(
             req.params.productId,
             { $push: { reviews: { user, rating: Number(rating), comment: comment || '', date: new Date() } } },
@@ -71,7 +88,7 @@ router.post('/:id/products/:productId/reviews', async (req, res) => {
 });
 
 // --- MEMBER APIs ---
-router.post('/:id/members', protect, adminOrHasPerm, async (req, res) => {
+router.post('/:id/members', protect, hasPerm('stores.manage'), async (req, res) => {
     try {
         const { userId } = req.body;
         if (!userId) return res.status(400).json({ error: 'userId required' });
@@ -87,7 +104,7 @@ router.post('/:id/members', protect, adminOrHasPerm, async (req, res) => {
     }
 });
 
-router.delete('/:id/members/:userId', protect, adminOrHasPerm, async (req, res) => {
+router.delete('/:id/members/:userId', protect, hasPerm('stores.manage'), async (req, res) => {
     try {
         const store = await Store.findByIdAndUpdate(
             req.params.id,

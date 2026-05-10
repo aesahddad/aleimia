@@ -25,20 +25,19 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const refreshToken = localStorage.getItem('aleinia_refreshToken');
+    try {
+      if (refreshToken) {
+        await client.post('/auth/logout', { refreshToken });
+      }
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
     localStorage.removeItem('aleinia_token');
     localStorage.removeItem('aleinia_refreshToken');
     saveUser(null);
   }, []);
-
-  const setAuth = async (token, refreshToken) => {
-    localStorage.setItem('aleinia_token', token);
-    if (refreshToken) localStorage.setItem('aleinia_refreshToken', refreshToken);
-    try {
-      const { data } = await client.get('/auth/callback', { params: { token, refreshToken } });
-      if (data.success) saveUser(data.user);
-    } catch { logout(); }
-  };
 
   const switchRole = useCallback(() => {
     if (!user) return;
@@ -48,7 +47,7 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, setAuth, switchRole }}>
+    <AuthContext.Provider value={{ user, login, logout, switchRole }}>
       {children}
     </AuthContext.Provider>
   );

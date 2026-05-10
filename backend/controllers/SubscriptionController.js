@@ -88,6 +88,21 @@ class SubscriptionController {
             const plan = await SubscriptionPlan.findById(planId);
             if (!plan) return res.status(404).json({ error: 'Plan not found' });
 
+            // "Architecture Guardian": Enforce business rule - Starter plan (basic) is one-time only
+            if (plan.slug === 'basic') {
+                const basicPlanIds = await SubscriptionPlan.find({ slug: 'basic' }).distinct('_id');
+                const hasUsedBasic = await Subscription.findOne({
+                    userId: req.user._id,
+                    planId: { $in: basicPlanIds }
+                });
+
+                if (hasUsedBasic) {
+                    return res.status(400).json({ 
+                        error: 'عذراً، باقة البداية متاحة للاستخدام مرة واحدة فقط لكل مستخدم.' 
+                    });
+                }
+            }
+
             const sub = await Subscription.create({
                 userId: req.user._id,
                 planId,

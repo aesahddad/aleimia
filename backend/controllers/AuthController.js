@@ -28,6 +28,10 @@ class AuthController {
             const accessToken = generateAccessToken(newUser._id);
             const refreshToken = generateRefreshToken(newUser._id);
 
+            // Save refresh token to user document
+            newUser.refreshTokens.push(refreshToken);
+            await newUser.save();
+
             res.status(201).json({
                 success: true,
                 token: accessToken,
@@ -63,6 +67,12 @@ class AuthController {
             const accessToken = generateAccessToken(user._id);
             const refreshToken = generateRefreshToken(user._id);
 
+            // "Architecture Hardening": Save refresh token for validation
+            user.refreshTokens.push(refreshToken);
+            // Limit stored tokens to 5 (prevents bloat)
+            if (user.refreshTokens.length > 5) user.refreshTokens.shift();
+            await user.save();
+
             res.json({
                 success: true,
                 token: accessToken,
@@ -89,13 +99,20 @@ class AuthController {
             }
 
             const decoded = verifyRefreshToken(refreshToken);
-            const user = await User.findById(decoded.id).select('-password');
-            if (!user) {
-                return res.status(401).json({ error: 'User not found' });
+            const user = await User.findById(decoded.id);
+            
+            if (!user || !user.refreshTokens.includes(refreshToken)) {
+                return res.status(401).json({ error: 'Invalid or expired refresh token' });
             }
 
+            // Remove old token and issue a new one (Token Rotation)
+            user.refreshTokens = user.refreshTokens.filter(t => t !== refreshToken);
+            
             const newAccessToken = generateAccessToken(user._id);
             const newRefreshToken = generateRefreshToken(user._id);
+            
+            user.refreshTokens.push(newRefreshToken);
+            await user.save();
 
             res.json({
                 success: true,
@@ -104,6 +121,25 @@ class AuthController {
             });
         } catch (error) {
             res.status(401).json({ error: 'Invalid or expired refresh token' });
+        }
+    }
+
+    static async logout(req, res) {
+        try {
+            const { refreshToken } = req.body;
+            if (refreshToken) {
+                const decoded = jwt.decode(refreshToken);
+                if (decoded && decoded.id) {
+                    const user = await User.findById(decoded.id);
+                    if (user) {
+                        user.refreshTokens = user.refreshTokens.filter(t => t !== refreshToken);
+                        await user.save();
+                    }
+                }
+            }
+            res.json({ success: true, message: 'Logged out successfully' });
+        } catch (e) {
+            res.status(500).json({ error: 'Logout failed' });
         }
     }
 
@@ -120,10 +156,16 @@ class AuthController {
             user.resetPasswordExpire = Date.now() + 3600000;
             await user.save();
 
+            const MailService = require('../services/MailService');
+            try {
+                await MailService.sendPasswordReset(email, resetToken);
+            } catch (mailErr) {
+                console.error('Failed to send email:', mailErr);
+            }
+
             res.json({
                 success: true,
-                message: 'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني',
-                resetToken
+                message: 'تم إرسال رابط إعادة تعيين كلمة المرورة إلى بريدك الإلكتروني'
             });
         } catch (error) {
             res.status(500).json({ error: 'حدث خطأ أثناء طلب إعادة التعيين' });

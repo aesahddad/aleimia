@@ -12,7 +12,7 @@ class StoreController {
      */
     static async getAll(req, res) {
         try {
-            const { q, status, admin, page = 1, limit = 20 } = req.query;
+            const { q, category, status, admin, page = 1, limit = 20 } = req.query;
             let query = {};
 
             if (admin === 'true') {
@@ -20,6 +20,10 @@ class StoreController {
                 else query.status = { $ne: 'deleted' };
             } else {
                 query.status = 'active';
+            }
+
+            if (category) {
+                query.category = category;
             }
 
             if (q) {
@@ -59,6 +63,24 @@ class StoreController {
     static async create(req, res) {
         try {
             const data = req.body;
+            data.ownerId = req.user._id;
+
+            // Map frontend field names to model nested fields
+            if (data.logoUrl) {
+                if (!data.branding) data.branding = {};
+                data.branding.logo = data.logoUrl;
+            }
+            if (data.coverUrl) {
+                if (!data.branding) data.branding = {};
+                data.branding.cover = data.coverUrl;
+                if (!data.imageUrl) data.imageUrl = data.coverUrl;
+            }
+            if (data.whatsappNumber) {
+                if (!data.financial) data.financial = {};
+                data.financial.whatsapp = data.whatsappNumber;
+            }
+            if (!data.imageUrl && data.logoUrl) data.imageUrl = data.logoUrl;
+
             const validation = Validator.validateStore(data);
             if (!validation.isValid) {
                 return res.status(400).json({ error: validation.errors[0] });
@@ -99,8 +121,39 @@ class StoreController {
      */
     static async update(req, res) {
         try {
-            const store = await Store.findByIdAndUpdate(req.params.id, req.body, { new: true });
+            const store = await Store.findById(req.params.id);
             if (!store) return res.status(404).json({ error: 'Store not found' });
+            if (store.ownerId?.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+                return res.status(403).json({ error: 'غير مصرح لك بتعديل هذا المتجر' });
+            }
+            const allowed = ['name', 'category', 'description', 'imageUrl', 'theme', 'branding', 'whatsapp', 'financial', 'logoUrl', 'coverUrl', 'whatsappNumber'];
+            const update = {};
+            allowed.forEach(f => { if (req.body[f] !== undefined) update[f] = req.body[f]; });
+
+            // Map frontend field names to model nested fields
+            if (req.body.logoUrl !== undefined) {
+                if (!update.branding && !store.branding) update.branding = {};
+                const b = update.branding || store.branding;
+                b.logo = req.body.logoUrl;
+                update.branding = b;
+                if (!update.imageUrl && !store.imageUrl) update.imageUrl = req.body.logoUrl;
+            }
+            if (req.body.coverUrl !== undefined) {
+                if (!update.branding && !store.branding) update.branding = {};
+                const b = update.branding || store.branding;
+                b.cover = req.body.coverUrl;
+                update.branding = b;
+                update.imageUrl = req.body.coverUrl;
+            }
+            if (req.body.whatsappNumber !== undefined) {
+                if (!update.financial && !store.financial) update.financial = {};
+                const f = update.financial || store.financial;
+                f.whatsapp = req.body.whatsappNumber;
+                update.financial = f;
+            }
+
+            Object.assign(store, update);
+            await store.save();
             res.json({ success: true, store });
         } catch (e) {
             res.status(500).json({ error: e.message });

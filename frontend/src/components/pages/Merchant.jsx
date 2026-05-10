@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import client from '../../api/client';
 import FileUploader from '../../components/shared/FileUploader';
 import { openWhatsApp } from '../../utils/whatsapp';
+import CATEGORIES from '../../config/categories';
 
 export const MERCHANT_TABS = [
   { id: 'dashboard', label: 'الرئيسية', icon: '📊' },
@@ -47,7 +48,7 @@ function MerchantDashboard({ user }) {
 
   useEffect(() => {
     client.get('/stores?admin=true&limit=100').then(r => {
-      const myStores = r.data.filter(s => s.ownerId === user._id || user.role === 'admin');
+      const myStores = r.data.filter(s => s.ownerId?._id?.toString() === user.id || s.ownerId?.toString() === user.id || user.role === 'admin');
       setStores(myStores);
     }).catch(() => {});
 
@@ -119,10 +120,11 @@ function MerchantStores({ user }) {
   const [activationMode, setActivationMode] = useState('manual');
   const [activating, setActivating] = useState(false);
   const [adminWhatsapp, setAdminWhatsapp] = useState('');
+  const [whatsappLink, setWhatsappLink] = useState('');
 
   const loadStores = () => {
     client.get('/stores?admin=true&limit=100').then(r => {
-      setStores(r.data.filter(s => s.ownerId === user._id || user.role === 'admin'));
+      setStores(r.data.filter(s => s.ownerId?._id?.toString() === user.id || s.ownerId?.toString() === user.id || user.role === 'admin'));
     }).catch(() => {});
   };
 
@@ -143,9 +145,9 @@ function MerchantStores({ user }) {
       name: store.name || '',
       description: store.description || '',
       category: store.category || '',
-      logoUrl: store.logoUrl || '',
-      coverUrl: store.coverUrl || '',
-      whatsappNumber: store.whatsappNumber || '',
+      logoUrl: store.logoUrl || store.branding?.logo || '',
+      coverUrl: store.coverUrl || store.branding?.cover || '',
+      whatsappNumber: store.whatsappNumber || store.financial?.whatsapp || '',
     });
     setEditStore(store);
     setShowForm(true);
@@ -155,7 +157,7 @@ function MerchantStores({ user }) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const payload = { ...form, ownerId: user._id };
+      const payload = { ...form };
       let store;
       if (editStore) {
         const { data } = await client.put(`/stores/${editStore._id}`, payload);
@@ -181,6 +183,18 @@ function MerchantStores({ user }) {
   const confirmActivation = async () => {
     if (!pendingStore || !selectedPlan) return;
     setActivating(true);
+
+    // Open WhatsApp synchronously (before await) while user gesture is active
+    let whatsappSent = false;
+    let fallbackUrl = '';
+    if (activationMode === 'manual' && adminWhatsapp) {
+      const userName = user?.username || user?.email || 'تاجر';
+      const msg = `مرحباً، أنا ${userName}، قمت بإنشاء متجر "${pendingStore.name}" وأرغب في تفعيل باقة "${selectedPlan.name}" (${selectedPlan.price} ريال/${selectedPlan.duration === 'yearly' ? 'سنوي' : 'شهر'}). الرجاء التواصل للتفعيل.`;
+      whatsappSent = openWhatsApp(adminWhatsapp, msg);
+      const clean = adminWhatsapp.replace(/[^0-9]/g, '');
+      fallbackUrl = `https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;
+    }
+
     try {
       if (activationMode === 'paid') {
         const callback = `${window.location.origin}/api/payments/callback`;
@@ -200,11 +214,7 @@ function MerchantStores({ user }) {
         }
       }
       await client.post('/subscriptions', { planId: selectedPlan._id, storeId: pendingStore._id });
-      if (activationMode === 'manual' && adminWhatsapp) {
-        const userName = user?.username || user?.email || 'تاجر';
-        const msg = `مرحباً، أنا ${userName}، قمت بإنشاء متجر "${pendingStore.name}" وأرغب في تفعيل باقة "${selectedPlan.name}" (${selectedPlan.price} ريال/${selectedPlan.duration === 'yearly' ? 'سنوي' : 'شهر'}). الرجاء التواصل للتفعيل.`;
-        openWhatsApp(adminWhatsapp, msg);
-      }
+      setWhatsappLink(fallbackUrl);
       setPendingStore(null);
       loadStores();
     } catch (err) {
@@ -236,7 +246,10 @@ function MerchantStores({ user }) {
               </div>
               <div className="admin-field">
                 <label>التصنيف *</label>
-                <input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} required placeholder="الأزياء, التقنية, ..." />
+                <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} required className="admin-input" style={{ width: '100%', padding: '8px' }}>
+                  <option value="">اختر تصنيفاً</option>
+                  {CATEGORIES.map(c => <option key={c.id} value={c.label}>{c.icon} {c.label}</option>)}
+                </select>
               </div>
               <div className="admin-field">
                 <label>رابط الشعار (Logo)</label>
@@ -307,7 +320,18 @@ function MerchantStores({ user }) {
                   </button>
                 </div>
                 {activationMode === 'manual' && (
-                  <p style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 6 }}>سيتم مراجعة طلبك من قبل الإدارة وتفعيل المتجر يدوياً.</p>
+                  <div style={{ marginTop: 6, padding: 10, borderRadius: 8, background: '#fef3c7', fontSize: 12, lineHeight: 1.6 }}>
+                    <p style={{ fontWeight: 700, color: '#92400e' }}>⚠️ تعليمات إرسال رسالة واتساب:</p>
+                    <p style={{ color: '#92400e', margin: '4px 0' }}>
+                      • سيتم فتح واتساب ويب لإرسال طلب التفعيل للإدارة
+                    </p>
+                    <p style={{ color: '#92400e', margin: '4px 0' }}>
+                      • تأكد من أن رقم واتساب الإدارة يبدأ بـ <strong dir="ltr">+966</strong> (أو مفتاح دولتك)
+                    </p>
+                    <p style={{ color: '#92400e', margin: '4px 0' }}>
+                      • إذا لم يتم إرسال الرسالة تلقائياً، يرجى نسخ الرابط وفتحه يدوياً
+                    </p>
+                  </div>
                 )}
                 {activationMode === 'paid' && (
                   <p style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 6 }}>سيتم توجيهك إلى بوابة الدفع. بعد الدفع، سيتم تفعيل المتجر فوراً.</p>
@@ -336,7 +360,7 @@ function MerchantStores({ user }) {
           <div key={store._id} className="merchant-store-card">
             <div className="merchant-store-header">
               <div className="merchant-store-info">
-                {store.logoUrl && <img src={store.logoUrl} alt="" className="merchant-store-logo" />}
+                {(store.logoUrl || store.branding?.logo) && <img src={store.logoUrl || store.branding?.logo} alt="" className="merchant-store-logo" />}
                 <div>
                   <h2>{store.name}</h2>
                   <span className={`status-badge status-${store.status}`}>
@@ -353,6 +377,21 @@ function MerchantStores({ user }) {
           </div>
         ))}
       </div>
+
+      {whatsappLink && (
+        <div className="admin-notification" style={{ position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 12, padding: '16px 20px', maxWidth: 520, width: '90%', zIndex: 9999, boxShadow: '0 4px 12px rgba(0,0,0,.15)', direction: 'rtl' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <p style={{ fontWeight: 700, color: '#92400e', marginBottom: 6 }}>📩 تم إنشاء طلب التفعيل</p>
+              <p style={{ fontSize: 12, color: '#92400e', marginBottom: 4 }}>تم إنشاء الاشتراك. إذا لم يتم فتح واتساب تلقائياً، اضغط على الرابط أدناه:</p>
+              <a href={whatsappLink} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 4, padding: '6px 14px', background: '#25D366', color: '#fff', borderRadius: 6, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
+                📱 فتح واتساب
+              </a>
+            </div>
+            <button onClick={() => setWhatsappLink('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#92400e', fontSize: 18, padding: 0, lineHeight: 1 }}>✕</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -368,7 +407,7 @@ function MerchantProducts({ user }) {
 
   const loadData = () => {
     client.get('/stores?admin=true&limit=100').then(r => {
-      const myStores = r.data.filter(s => s.ownerId === user._id || user.role === 'admin');
+      const myStores = r.data.filter(s => s.ownerId?._id?.toString() === user.id || s.ownerId?.toString() === user.id || user.role === 'admin');
       setStores(myStores);
       if (myStores.length > 0 && !selectedStore) {
         setSelectedStore(myStores[0]._id);
@@ -618,13 +657,13 @@ function MerchantSettings({ user }) {
   useEffect(() => {
     client.get('/status').then(r => setSettings(r.data)).catch(() => {});
     client.get('/stores?admin=true&limit=100').then(r => {
-      const myStores = r.data.filter(s => s.ownerId === user._id || user.role === 'admin');
+      const myStores = r.data.filter(s => s.ownerId?._id?.toString() === user.id || s.ownerId?.toString() === user.id || user.role === 'admin');
       setStores(myStores);
       if (myStores.length > 0) {
         const s = myStores[0];
         setSelectedStore(s._id);
         setSupplierInfo({ code: s.financial?.supplierCode, registered: s.financial?.supplierRegistered });
-        setForm({ name: s.name || '', description: s.description || '', logoUrl: s.logoUrl || '', coverUrl: s.coverUrl || '', whatsappNumber: s.whatsappNumber || s.financial?.whatsapp || '', 'financial.iban': s.financial?.iban || '', 'financial.crNumber': s.financial?.crNumber || '', 'financial.taxNumber': s.financial?.taxNumber || '', 'branding.promoVideo': s.branding?.promoVideo || '', 'branding.specifications': s.branding?.specifications || '' });
+        setForm({ name: s.name || '', description: s.description || '', logoUrl: s.logoUrl || s.branding?.logo || '', coverUrl: s.coverUrl || s.branding?.cover || '', whatsappNumber: s.whatsappNumber || s.financial?.whatsapp || '', 'financial.iban': s.financial?.iban || '', 'financial.crNumber': s.financial?.crNumber || '', 'financial.taxNumber': s.financial?.taxNumber || '', 'branding.promoVideo': s.branding?.promoVideo || '', 'branding.specifications': s.branding?.specifications || '' });
       }
     }).catch(() => {});
   }, [user]);
@@ -634,7 +673,7 @@ function MerchantSettings({ user }) {
     const store = stores.find(s => s._id === id);
     if (store) {
       setSupplierInfo({ code: store.financial?.supplierCode, registered: store.financial?.supplierRegistered });
-      setForm({ name: store.name || '', description: store.description || '', logoUrl: store.logoUrl || '', coverUrl: store.coverUrl || '', whatsappNumber: store.whatsappNumber || store.financial?.whatsapp || '', 'financial.iban': store.financial?.iban || '', 'financial.crNumber': store.financial?.crNumber || '', 'financial.taxNumber': store.financial?.taxNumber || '', 'branding.promoVideo': store.branding?.promoVideo || '', 'branding.specifications': store.branding?.specifications || '' });
+      setForm({ name: store.name || '', description: store.description || '', logoUrl: store.logoUrl || store.branding?.logo || '', coverUrl: store.coverUrl || store.branding?.cover || '', whatsappNumber: store.whatsappNumber || store.financial?.whatsapp || '', 'financial.iban': store.financial?.iban || '', 'financial.crNumber': store.financial?.crNumber || '', 'financial.taxNumber': store.financial?.taxNumber || '', 'branding.promoVideo': store.branding?.promoVideo || '', 'branding.specifications': store.branding?.specifications || '' });
     }
     setSaved(false);
   };

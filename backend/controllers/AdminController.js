@@ -57,10 +57,13 @@ class AdminController {
      */
     static async updateSettings(req, res) {
         try {
+            const allowed = ['maintenanceMode', 'announcement', 'allowNewMerchants', 'allowGuestAds', 'enablePaymentGateway', 'enableDeliveryService', 'commissionPercent', 'promoVideoUrl', 'promoVideoPlansUrl', 'adminWhatsapp', 'adminEmail'];
+            const update = {};
+            allowed.forEach(f => { if (req.body[f] !== undefined) update[f] = req.body[f]; });
             const settings = await SystemSettings.findByIdAndUpdate(
                 'global_settings',
-                req.body,
-                { new: true, upsert: true }
+                update,
+                { new: true, upsert: true, runValidators: true }
             );
             res.json({ success: true, settings });
         } catch (e) {

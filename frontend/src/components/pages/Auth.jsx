@@ -1,12 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import client from '../../api/client';
 
+const SOCIAL_PROVIDERS = [
+  { id: 'google', label: 'Google', icon: 'G', color: '#4285F4' },
+  { id: 'apple', label: 'Apple', icon: '', color: '#000000' },
+  { id: 'facebook', label: 'Facebook', icon: 'f', color: '#1877F2' },
+  { id: 'tiktok', label: 'TikTok', icon: '♪', color: '#000000' },
+  { id: 'snapchat', label: 'Snapchat', icon: '☆', color: '#FFFC00' },
+  { id: 'linkedin', label: 'LinkedIn', icon: 'in', color: '#0A66C2' },
+];
+
 export default function Auth() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { login, setAuth, user } = useAuth();
+  const { login, user } = useAuth();
 
   const [mode, setMode] = useState(searchParams.get('mode') || 'login');
   const [email, setEmail] = useState('');
@@ -15,16 +24,56 @@ export default function Auth() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [registerAsMerchant, setRegisterAsMerchant] = useState(false);
+  const [socialLoading, setSocialLoading] = useState(null);
   const [resetMode, setResetMode] = useState(false);
   const [resetStep, setResetStep] = useState('request');
   const [resetToken, setResetToken] = useState('');
   const [resetMsg, setResetMsg] = useState('');
 
-  const socialToken = searchParams.get('token');
-  if (socialToken) {
-    setAuth(socialToken, searchParams.get('refreshToken')).then(() => navigate('/'));
-    return <div className="auth-page"><div className="auth-card"><p style={{ textAlign: 'center' }}>جاري تسجيل الدخول...</p></div></div>;
-  }
+  // Handle social callback code from URL
+  useEffect(() => {
+    const code = searchParams.get('code');
+    const provider = searchParams.get('provider');
+    const state = searchParams.get('state');
+    if (code && provider) {
+      handleSocialCallback(provider, code, state);
+    }
+    // Handle reset link from email
+    const resetTokenParam = searchParams.get('token');
+    const modeParam = searchParams.get('mode');
+    if (modeParam === 'reset' && resetTokenParam) {
+      setResetMode(true);
+      setResetToken(resetTokenParam);
+      setResetStep('done');
+    }
+  }, []);
+
+  const handleSocialClick = async (provider) => {
+    setSocialLoading(provider);
+    try {
+      const fbUrl = `${window.location.origin}/auth?provider=${provider}`;
+      const { data } = await client.get(`/auth/social/${provider}/url`, { params: { redirect_uri: fbUrl } });
+      window.location.href = data.url;
+    } catch {
+      setError('فشل الاتصال بمزود الخدمة');
+      setSocialLoading(null);
+    }
+  };
+
+  const handleSocialCallback = async (provider, code) => {
+    setSocialLoading(provider);
+    try {
+      const fbUrl = `${window.location.origin}/auth?provider=${provider}`;
+      const { data } = await client.post(`/auth/social/${provider}/callback`, { code, redirect_uri: fbUrl });
+      localStorage.setItem('aleinia_token', data.token);
+      localStorage.setItem('aleinia_refreshToken', data.refreshToken);
+      localStorage.setItem('aleinia_user', JSON.stringify(data.user));
+      window.location.href = '/';
+    } catch (err) {
+      setError(err.response?.data?.error || 'فشل تسجيل الدخول عبر ' + provider);
+      setSocialLoading(null);
+    }
+  };
 
   if (user) {
     navigate('/');
@@ -58,9 +107,8 @@ export default function Auth() {
     setLoading(true);
     try {
       const { data } = await client.post('/auth/forgot-password', { email });
-      setResetToken(data.resetToken);
       setResetMsg(data.message);
-      setResetStep('done');
+      setResetStep('sent');
     } catch (err) {
       setError(err.response?.data?.error || err.message);
     } finally {
@@ -103,9 +151,20 @@ export default function Auth() {
             </form>
           )}
 
+          {resetStep === 'sent' && (
+            <div>
+              <p style={{ marginBottom: 16, fontSize: 13, color: 'var(--text-light)', lineHeight: 1.6 }}>
+                ✅ تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني. يرجى فحص صندوق الوارد (والبريد المزعج).
+              </p>
+              <button className="auth-submit" onClick={() => { setResetMode(false); setResetStep('request'); setResetMsg(''); }}>
+                العودة لتسجيل الدخول
+              </button>
+            </div>
+          )}
+
           {resetStep === 'done' && (
             <div>
-              <p style={{ marginBottom: 16, fontSize: 13, color: 'var(--text-light)', lineHeight: 1.6 }}>تم إرسال رمز إعادة التعيين. أدخل كلمة مرور جديدة أدناه:</p>
+              <p style={{ marginBottom: 16, fontSize: 13, color: 'var(--text-light)', lineHeight: 1.6 }}>أدخل كلمة المرور الجديدة:</p>
               <form onSubmit={e => { e.preventDefault(); confirmReset(); }}>
                 <div className="auth-field">
                   <label>كلمة المرور الجديدة</label>
@@ -175,30 +234,12 @@ export default function Auth() {
         <div className="auth-divider"><span>أو</span></div>
 
         <div className="auth-social">
-          <a href="/api/auth/facebook" className="auth-social-btn facebook">
-            <span className="auth-social-icon">f</span>
-            <span>{mode === 'login' ? 'الدخول عبر فيسبوك' : 'التسجيل عبر فيسبوك'}</span>
-          </a>
-          <a href="/api/auth/google" className="auth-social-btn google">
-            <span className="auth-social-icon">G</span>
-            <span>{mode === 'login' ? 'الدخول عبر Google' : 'التسجيل عبر Google'}</span>
-          </a>
-          <a href="/api/auth/linkedin" className="auth-social-btn linkedin">
-            <span className="auth-social-icon">in</span>
-            <span>{mode === 'login' ? 'الدخول عبر LinkedIn' : 'التسجيل عبر LinkedIn'}</span>
-          </a>
-          <a href="/api/auth/apple" className="auth-social-btn apple">
-            <span className="auth-social-icon"></span>
-            <span>{mode === 'login' ? 'الدخول عبر Apple' : 'التسجيل عبر Apple'}</span>
-          </a>
-          <a href="/api/auth/tiktok" className="auth-social-btn tiktok">
-            <span className="auth-social-icon">♪</span>
-            <span>{mode === 'login' ? 'الدخول عبر TikTok' : 'التسجيل عبر TikTok'}</span>
-          </a>
-          <a href="/api/auth/snapchat" className="auth-social-btn snapchat">
-            <span className="auth-social-icon">👻</span>
-            <span>{mode === 'login' ? 'الدخول عبر Snapchat' : 'التسجيل عبر Snapchat'}</span>
-          </a>
+          {SOCIAL_PROVIDERS.map(p => (
+            <button key={p.id} className="auth-social-btn" onClick={() => handleSocialClick(p.id)} disabled={socialLoading === p.id} style={{ borderColor: p.color, color: p.color }}>
+              <span className="auth-social-icon" style={{ background: p.color, color: p.color === '#FFFC00' ? '#000' : '#fff' }}>{p.icon}</span>
+              <span>{socialLoading === p.id ? 'جاري...' : `${mode === 'login' ? 'الدخول' : 'التسجيل'} عبر ${p.label}`}</span>
+            </button>
+          ))}
         </div>
 
         <div className="auth-toggle">

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs-extra');
 const path = require('path');
+const { protect, admin } = require('../middleware/auth');
 
 const CONFIG_PATH = path.join(__dirname, '../../frontend/config/tabs.json');
 const ROUTES_PATH = path.join(__dirname, '../../frontend/config/routes.json');
@@ -47,7 +48,7 @@ router.get('/', async (req, res) => {
 });
 
 // SAVE Tabs
-router.post('/', async (req, res) => {
+router.post('/', protect, admin, async (req, res) => {
     try {
         const tabs = req.body; // Expects array of tabs
         await fs.writeJson(CONFIG_PATH, tabs, { spaces: 4 });

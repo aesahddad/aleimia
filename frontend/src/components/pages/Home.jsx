@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchStores } from '../../api/client';
+import CATEGORIES from '../../config/categories';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -26,8 +27,8 @@ export default function Home() {
             <div className="home-hero-filter">
               <select value={category} onChange={(e) => setCategory(e.target.value)} className="home-filter-select">
                 <option value="">جميع التصنيفات</option>
-                {['الأزياء', 'التقنية', 'الأغذية', 'الجمال', 'الرياضة', 'الكتب', 'الأثاث', 'السيارات', 'الصحة', 'الترفيه'].map(c => (
-                  <option key={c} value={c}>{c}</option>
+                {CATEGORIES.map(c => (
+                  <option key={c.id} value={c.label}>{c.icon} {c.label}</option>
                 ))}
               </select>
             </div>
@@ -70,6 +71,7 @@ export default function Home() {
                   <div className="store-card-body">
                     <span className="store-card-badge">{store.category || 'متجر'}</span>
                     <h3>{store.name}</h3>
+                    {store.description && <p style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 4, lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{store.description}</p>}
                     <div className="store-card-meta">
                       <span>★ 4.9</span>
                       <span>•</span>

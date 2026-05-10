@@ -337,6 +337,7 @@ body {
 .spec-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
 .spec-label { color: var(--text-light); }
 .spec-value { font-weight: 700; color: var(--accent); }
+.sidebar-description { font-size: 13px; line-height: 1.7; color: var(--text-main); white-space: pre-wrap; }
 
 .sidebar-products { display: flex; flex-direction: column; gap: 6px; }
 .sidebar-product {
@@ -439,7 +440,7 @@ body {
   background: rgba(255,255,255,0.1); color: white; font-size: 13px;
   backdrop-filter: blur(8px); outline: none;
 }
-.home-filter-select option { color: #0f172a; background: white; }
+.home-filter-select option { color: white; background: rgba(15,23,42,0.85); backdrop-filter: blur(12px); }
 
 .home-toolbar {
   display: flex; gap: 8px; margin: 12px 8px;
@@ -1022,15 +1023,16 @@ body {
 .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: rgba(0,0,0,0.1); }
 .auth-divider span { padding: 0 12px; }
 .auth-social { display: flex; flex-direction: column; gap: 8px; }
-.auth-social-btn { display: flex; align-items: center; gap: 8px; justify-content: center; padding: 10px; border-radius: 50px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; text-decoration: none; }
+.auth-social-btn { display: flex; align-items: center; gap: 8px; justify-content: center; padding: 10px; border-radius: 50px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
 .auth-social-btn:active { transform: scale(0.98); }
 .auth-social-btn.google { background: white; color: #333; box-shadow: var(--shadow-light), var(--shadow-dark); }
-.auth-social-btn.facebook { background: #1877f2; color: white; }
-.auth-social-btn.linkedin { background: #0a66c2; color: white; }
 .auth-social-btn.apple { background: #1d1d1f; color: white; }
-.auth-social-btn.tiktok { background: #010101; color: white; }
-.auth-social-btn.snapchat { background: #fffc00; color: #010101; }
 .auth-social-icon { font-size: 18px; font-weight: 900; }
+.auth-social-popup { position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.auth-social-popup-content { background: var(--bg); border-radius: var(--radius); box-shadow: var(--shadow-light), var(--shadow-dark); padding: 32px; text-align: center; max-width: 360px; width: 100%; }
+.auth-social-popup-icon { display: block; font-size: 36px; font-weight: 900; margin-bottom: 12px; }
+.auth-social-popup-content h3 { font-size: 20px; font-weight: 900; color: var(--accent); margin-bottom: 8px; }
+.auth-social-popup-content p { font-size: 13px; color: var(--text-light); margin-bottom: 20px; line-height: 1.6; }
 .auth-forgot-btn { display: block; margin: 8px auto 0; background: none; border: none; color: var(--accent); font-size: 12px; cursor: pointer; text-decoration: underline; }
 .auth-merchant-toggle input { width: auto; accent-color: var(--accent); }
 .auth-success { background: #dcfce7; color: #166534; padding: 10px; border-radius: var(--radius-sm); font-size: 12px; margin-bottom: 12px; text-align: center; }

@@ -26,4 +26,9 @@ const ProductSchema = new mongoose.Schema({
     }]
 }, { timestamps: true });
 
+// "Architecture Hardening": DB Optimization
+ProductSchema.index({ name: 1 });
+ProductSchema.index({ storeId: 1, name: 1 }); // Faster product lookup within a store
+ProductSchema.index({ name: 'text', description: 'text' }); // Efficient text search
+
 module.exports = mongoose.model('Product', ProductSchema);

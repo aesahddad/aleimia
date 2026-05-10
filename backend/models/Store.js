@@ -5,6 +5,9 @@ const StoreSchema = new mongoose.Schema({
     slug: { type: String, unique: true }, // For friendly URLs if needed
     category: String,
     imageUrl: String, // Cover/Card Image
+    logoUrl: String,
+    coverUrl: String,
+    whatsappNumber: String,
     description: String,
 
     // Store Identity & Config
@@ -50,5 +53,9 @@ StoreSchema.index({ slug: 1 });
 StoreSchema.index({ status: 1 });
 StoreSchema.index({ category: 1 });
 StoreSchema.index({ name: 1 });
+
+// "Architecture Hardening": DB Optimization
+StoreSchema.index({ category: 1, status: 1 }); // Faster filtering for public grid
+StoreSchema.index({ name: 'text', description: 'text' }); // Efficient text search
 
 module.exports = mongoose.model('Store', StoreSchema);

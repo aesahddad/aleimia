@@ -1,11 +1,11 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const mongoose = require('mongoose');
-const passport = require('passport');
 const logger = require('./shared/logger');
 
 const MONGO_URI = process.env.MONGO_URI;
@@ -23,6 +23,7 @@ const io = new Server(httpServer, {
     cors: { origin: allowedOrigins, methods: ["GET", "POST"] }
 });
 
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' }, contentSecurityPolicy: false }));
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -33,10 +34,6 @@ app.use('/api/uploads', express.static(path.resolve(__dirname, 'uploads')));
 
 const checkMaintenance = require('./middleware/checkMaintenance');
 app.use('/api', checkMaintenance);
-
-const socialAuth = require('./services/SocialAuthService');
-socialAuth.init();
-app.use(passport.initialize());
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));

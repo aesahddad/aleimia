@@ -45,6 +45,7 @@ export default function DynamicTabPage() {
               <div className="store-card-body">
                 <span className="store-card-badge">{store.category || 'متجر'}</span>
                 <h3>{store.name}</h3>
+                {store.description && <p style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 4, lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{store.description}</p>}
                 <div className="store-card-meta">
                   <span>★ 4.9</span>
                   <span>•</span>

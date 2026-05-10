@@ -14,8 +14,8 @@ echo "🚀 Starting Deployment for $DOMAIN..."
 # 1. Update System
 sudo apt update && sudo apt upgrade -y
 
-# 2. Install Node.js (v18)
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+# 2. Install Node.js (v22 LTS)
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt install -y nodejs nginx git certbot python3-certbot-nginx zip unzip
 sudo npm install -g pm2
 
@@ -25,13 +25,23 @@ sudo npm install -g pm2
 
 echo "📂 Current Directory: $(pwd)"
 
-# 4. Install Dependencies
+# 4. Install Dependencies & Build Frontend
 echo "📦 Installing Dependencies..."
 if [ -f "package.json" ]; then
-    npm install --production
+    npm ci --only=production
 else
     echo "❌ Error: package.json not found in $(pwd)!"
     exit 1
+fi
+
+echo "🏗️ Building Frontend..."
+if [ -d "frontend" ]; then
+    cd frontend
+    npm ci
+    npm run build
+    cd ..
+else
+    echo "⚠️ Frontend directory not found, skipping build"
 fi
 
 # 5. Setup Environment

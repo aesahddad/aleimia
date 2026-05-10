@@ -48,7 +48,47 @@ class UserController {
                 return res.status(400).json({ error: 'Invalid role' });
             }
 
-            const user = await User.findByIdAndUpdate(req.params.id, { role }, { new: true }).select('-password');
+            const defaultPermissions = {
+                stores: { manage: false, simulate: false, activate: false, freeze: false, delete: false },
+                ads: { manage: false, approve: false, reject: false, delete: false },
+                ops: { manage: false, tickets: false, refunds: false },
+                moderation: { manage: false, content_review: false, ban_users: false },
+                users: { manage: false, edit_roles: false },
+                dashboard: { view: false },
+                products: { manage: false, approve: false, delete: false },
+                settings: { view: false, manage: false },
+                subscriptions: { view: false, manage: false },
+                reviews: { manage: false, delete: false },
+                tabs: { manage: false },
+                trash: { view: false, restore: false }
+            };
+
+            let permissions = { ...defaultPermissions };
+
+            if (role === 'admin') {
+                permissions = {
+                    stores: { manage: true, simulate: true, activate: true, freeze: true, delete: true },
+                    ads: { manage: true, approve: true, reject: true, delete: true },
+                    ops: { manage: true, tickets: true, refunds: true },
+                    moderation: { manage: true, content_review: true, ban_users: true },
+                    users: { manage: true, edit_roles: true },
+                    dashboard: { view: true },
+                    products: { manage: true, approve: true, delete: true },
+                    settings: { view: true, manage: true },
+                    subscriptions: { view: true, manage: true },
+                    reviews: { manage: true, delete: true },
+                    tabs: { manage: true },
+                    trash: { view: true, restore: true }
+                };
+            } else if (role === 'merchant') {
+                permissions = {
+                    ...defaultPermissions,
+                    stores: { manage: true, simulate: false, activate: false, freeze: false, delete: false },
+                    dashboard: { view: true }
+                };
+            }
+
+            const user = await User.findByIdAndUpdate(req.params.id, { role, permissions }, { new: true }).select('-password');
             if (!user) return res.status(404).json({ error: 'User not found' });
 
             res.json({ success: true, user });
@@ -85,6 +125,30 @@ class UserController {
             }
 
             const user = await User.findByIdAndUpdate(req.params.id, { status }, { new: true }).select('-password');
+            if (!user) return res.status(404).json({ error: 'User not found' });
+
+            res.json({ success: true, user });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    }
+
+    /**
+     * @route PUT /api/users/:id
+     */
+    static async update(req, res) {
+        try {
+            const { username, email, password } = req.body;
+            const update = {};
+            if (username !== undefined) update.username = username;
+            if (email !== undefined) update.email = email;
+            if (password) update.password = password;
+
+            if (Object.keys(update).length === 0) {
+                return res.status(400).json({ error: 'No fields to update' });
+            }
+
+            const user = await User.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true }).select('-password');
             if (!user) return res.status(404).json({ error: 'User not found' });
 
             res.json({ success: true, user });

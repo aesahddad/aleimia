@@ -36,4 +36,7 @@ AdSchema.index({ category: 1, status: 1 });
 AdSchema.index({ title: 1 });
 AdSchema.index({ status: 1 });
 
+// "Architecture Hardening": DB Optimization
+AdSchema.index({ title: 'text', description: 'text' }); // Efficient text search
+
 module.exports = mongoose.model('Ad', AdSchema);

@@ -152,6 +152,13 @@ export default function Sidebar({ store, product, products, onSelectProduct, onA
             </div>
           )}
 
+          {product.description && (
+            <div className="sidebar-section">
+              <h3 className="sidebar-section-title">الوصف</h3>
+              <p className="sidebar-description">{product.description}</p>
+            </div>
+          )}
+
           <div className="sidebar-section">
             <h3 className="sidebar-section-title">المواصفات</h3>
             <div className="sidebar-specs">
