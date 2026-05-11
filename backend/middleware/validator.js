@@ -63,7 +63,7 @@ const productSchema = Joi.object({
     name: Joi.string().min(2).max(150).required(),
     price: Joi.number().min(0),
     description: Joi.string().allow('', null),
-    displayMode: Joi.string().valid('frame', 'model'),
+    displayMode: Joi.string().valid('', 'frame', 'model'),
     imageUrl: Joi.string().allow('', null),
     modelUrl: Joi.string().allow('', null),
     videoUrl: Joi.string().allow('', null),

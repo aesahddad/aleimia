@@ -21,7 +21,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
     storage,
-    limits: { fileSize: 100 * 1024 * 1024 }, // 100MB for GLB files
+    limits: { fileSize: 200 * 1024 * 1024 }, // 200MB for GLB files
     fileFilter: (req, file, cb) => {
         const allowedImages = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
         const allowedVideos = ['video/mp4', 'video/webm'];

@@ -159,7 +159,7 @@ export default function StoreView() {
         <div className="store-3d-container">
           <SceneManager scenery={scenery}>
             {activeProduct && hasModel ? (
-              <ProductModel url={activeProduct.modelUrl} />
+              <ProductModel key={activeProduct._id} url={activeProduct.modelUrl} />
             ) : activeProduct ? (
               <SmartFrame imageUrl={activeProduct.imageUrl} specs={activeProduct.specs || []} />
             ) : null}
