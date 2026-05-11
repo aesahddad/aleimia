@@ -138,7 +138,10 @@ export default function Sidebar({ store, product, products, onSelectProduct, onA
             <div className="sidebar-section">
               <div className="sidebar-video">
                 {product.videoUrl.includes('youtube') || product.videoUrl.includes('youtu.be') ? (
-                  <iframe key={product._id} src={`https://www.youtube-nocookie.com/embed/${extractYoutubeId(product.videoUrl)}`} allowFullScreen title="product video" />
+                  <>
+                    <iframe key={product._id} src={`https://www.youtube-nocookie.com/embed/${extractYoutubeId(product.videoUrl)}`} allowFullScreen title="product video" />
+                    <a href={product.videoUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block', textAlign: 'center', marginTop: 8, fontSize: 12, color: 'var(--accent)' }}>▶️ مشاهدة على YouTube</a>
+                  </>
                 ) : (
                   <video key={product._id} controls><source src={product.videoUrl} /></video>
                 )}

@@ -69,7 +69,10 @@ export default function AdDetail({ ad, onBack }) {
         {ad.videoUrl && (
           <div className="ad-detail-video">
             {ad.videoUrl.includes('youtube') || ad.videoUrl.includes('youtu.be') ? (
-              <iframe key={ad._id} src={`https://www.youtube-nocookie.com/embed/${extractYoutubeId(ad.videoUrl)}`} allowFullScreen title="ad video" />
+              <>
+                <iframe key={ad._id} src={`https://www.youtube-nocookie.com/embed/${extractYoutubeId(ad.videoUrl)}`} allowFullScreen title="ad video" />
+                <a href={ad.videoUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block', textAlign: 'center', marginTop: 8, fontSize: 12, color: 'var(--accent)' }}>▶️ مشاهدة على YouTube</a>
+              </>
             ) : (
               <video key={ad._id} controls><source src={ad.videoUrl} /></video>
             )}
