@@ -70,7 +70,7 @@ server {
     listen 80;
     server_name $DOMAIN www.$DOMAIN;
     root $(pwd);
-    client_max_body_size 50M;
+    client_max_body_size 200M;
 
     location /api {
         proxy_pass http://localhost:3000;

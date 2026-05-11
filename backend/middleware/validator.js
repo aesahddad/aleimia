@@ -65,7 +65,12 @@ const productSchema = Joi.object({
     description: Joi.string().allow('', null),
     displayMode: Joi.string().valid('frame', 'model'),
     imageUrl: Joi.string().allow('', null),
-    modelUrl: Joi.string().allow('', null)
+    modelUrl: Joi.string().allow('', null),
+    videoUrl: Joi.string().allow('', null),
+    category: Joi.string().allow('', null),
+    specs: Joi.any(),
+    galleryImages: Joi.any(),
+    reviews: Joi.any()
 });
 
 module.exports = {
