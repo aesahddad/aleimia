@@ -1,4 +1,4 @@
-require('dotenv').config();
+﻿require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -23,7 +23,7 @@ const io = new Server(httpServer, {
     cors: { origin: allowedOrigins, methods: ["GET", "POST"] }
 });
 
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' }, contentSecurityPolicy: false }));
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' }, contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://cdnjs.cloudflare.com'], styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'], imgSrc: ["'self'", 'data:', 'blob:', '*'], connectSrc: ["'self'", 'ws://localhost:3001', 'wss://aleinia.com'], fontSrc: ["'self'", 'https://fonts.gstatic.com'], frameSrc: ["'self'", 'https://www.youtube.com', 'https://www.youtube-nocookie.com'], mediaSrc: ["'self'", 'blob:', 'data:'], objectSrc: ["'none'"] } } }))
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -86,14 +86,16 @@ const startServer = async () => {
                     });
                     io.to(`chat_${data.adId}`).emit('receive_message', msg);
                 } catch (e) {
-                    console.error('Chat save error:', e);
+                    logger.error('Chat save error:', e);
                 }
             });
         });
     } catch (err) {
-        console.error('❌ Server Start Error:', err);
+        logger.error('Server Start Error:', err);
     }
 };
 
 startServer();
 module.exports = app;
+
+

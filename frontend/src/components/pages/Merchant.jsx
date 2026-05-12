@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import client from '../../api/client';
@@ -6,12 +6,7 @@ import FileUploader from '../../components/shared/FileUploader';
 import { openWhatsApp } from '../../utils/whatsapp';
 import CATEGORIES from '../../config/categories';
 
-export const MERCHANT_TABS = [
-  { id: 'dashboard', label: 'الرئيسية', icon: '📊' },
-  { id: 'stores', label: 'متاجري', icon: '🏪' },
-  { id: 'products', label: 'المنتجات', icon: '📦' },
-  { id: 'settings', label: 'الإعدادات', icon: '⚙️' },
-];
+import { MERCHANT_TABS } from '../../config/merchantTabs';
 
 export default function Merchant() {
   const { user } = useAuth();
@@ -50,9 +45,9 @@ function MerchantDashboard({ user }) {
     client.get('/stores?admin=true&limit=100').then(r => {
       const myStores = r.data.filter(s => s.ownerId?._id?.toString() === user.id || s.ownerId?.toString() === user.id || user.role === 'admin');
       setStores(myStores);
-    }).catch(() => {});
+    }).catch(err => console.error('API error:', err));
 
-    client.get('/admin/stats').then(r => setStats(r.data)).catch(() => {});
+    client.get('/admin/stats').then(r => setStats(r.data)).catch(err => console.error('API error:', err));
   }, [user]);
 
   const totalProducts = stores.reduce((sum, s) => sum + (s.productCount || 0), 0);
@@ -125,13 +120,13 @@ function MerchantStores({ user }) {
   const loadStores = () => {
     client.get('/stores?admin=true&limit=100').then(r => {
       setStores(r.data.filter(s => s.ownerId?._id?.toString() === user.id || s.ownerId?.toString() === user.id || user.role === 'admin'));
-    }).catch(() => {});
+    }).catch(err => console.error('API error:', err));
   };
 
   useEffect(() => { loadStores(); }, [user]);
   useEffect(() => {
-    client.get('/subscriptions/plans').then(r => setPlans(r.data)).catch(() => {});
-    client.get('/status').then(r => setAdminWhatsapp(r.data.adminWhatsapp || '')).catch(() => {});
+    client.get('/subscriptions/plans').then(r => setPlans(r.data)).catch(err => console.error('API error:', err));
+    client.get('/status').then(r => setAdminWhatsapp(r.data.adminWhatsapp || '')).catch(err => console.error('API error:', err));
   }, []);
 
   const openCreate = () => {
@@ -416,7 +411,7 @@ function MerchantProducts({ user }) {
       myStores.forEach(s => {
         client.get(`/stores/${s._id}/products`).then(r => setProducts(prev => ({ ...prev, [s._id]: r.data })));
       });
-    }).catch(() => {});
+    }).catch(err => console.error('API error:', err));
   };
 
   useEffect(() => { loadData(); }, [user]);
@@ -656,7 +651,7 @@ function MerchantSettings({ user }) {
   const [settings, setSettings] = useState(null);
 
   useEffect(() => {
-    client.get('/status').then(r => setSettings(r.data)).catch(() => {});
+    client.get('/status').then(r => setSettings(r.data)).catch(err => console.error('API error:', err));
     client.get('/stores?admin=true&limit=100').then(r => {
       const myStores = r.data.filter(s => s.ownerId?._id?.toString() === user.id || s.ownerId?.toString() === user.id || user.role === 'admin');
       setStores(myStores);
@@ -666,7 +661,7 @@ function MerchantSettings({ user }) {
         setSupplierInfo({ code: s.financial?.supplierCode, registered: s.financial?.supplierRegistered });
         setForm({ name: s.name || '', description: s.description || '', logoUrl: s.logoUrl || s.branding?.logo || '', coverUrl: s.coverUrl || s.branding?.cover || '', whatsappNumber: s.whatsappNumber || s.financial?.whatsapp || '', websiteUrl: s.websiteUrl || '', aboutUs: s.aboutUs || '', 'financial.iban': s.financial?.iban || '', 'financial.crNumber': s.financial?.crNumber || '', 'financial.taxNumber': s.financial?.taxNumber || '', 'branding.promoVideo': s.branding?.promoVideo || '', 'branding.specifications': s.branding?.specifications || '' });
       }
-    }).catch(() => {});
+    }).catch(err => console.error('API error:', err));
   }, [user]);
 
   const selectStore = (id) => {

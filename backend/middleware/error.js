@@ -1,16 +1,10 @@
 const logger = require('../shared/logger');
+const { error: sendError } = require('../utils/response');
 
 const errorHandler = (err, req, res, next) => {
-    // Log the error
     logger.error(err.message, { stack: err.stack, path: req.path, method: req.method });
-
     const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
-
-    res.status(statusCode).json({
-        success: false,
-        error: err.message || 'Server Error',
-        stack: process.env.NODE_ENV === 'production' ? null : err.stack,
-    });
+    return sendError(res, err.message || 'Server Error', statusCode);
 };
 
 const notFound = (req, res, next) => {

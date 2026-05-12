@@ -3,9 +3,8 @@ const mongoose = require('mongoose');
 jest.setTimeout(30000);
 
 beforeAll(async () => {
-    // Connect to a TEST Database to avoid wiping real data
-    // Fallback to Cloud Test DB since Localhost might not be available
-    const url = process.env.MONGO_URI || process.env.MONGO_URI_TEST;
+    const url = process.env.MONGO_URI_TEST;
+    if (!url) return;
     await mongoose.connect(url);
 });
 

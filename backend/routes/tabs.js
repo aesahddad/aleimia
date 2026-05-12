@@ -1,8 +1,11 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const fs = require('fs-extra');
 const path = require('path');
 const { protect, admin } = require('../middleware/auth');
+const { success, error } = require('../utils/response');
+const { validate, tabsSchema } = require('../middleware/validator');
+const logger = require('../shared/logger');
 
 const CONFIG_PATH = path.join(__dirname, '../../frontend/config/tabs.json');
 const ROUTES_PATH = path.join(__dirname, '../../frontend/config/routes.json');
@@ -24,21 +27,18 @@ router.get('/', async (req, res) => {
     try {
         if (fs.existsSync(CONFIG_PATH)) {
             const tabs = await fs.readJson(CONFIG_PATH);
-            res.json(tabs.sort((a, b) => a.order - b.order));
-        } else {
-            console.warn('Tabs config not found, returning defaults');
-            res.json([
-                { id: 'platform', label: 'الرئيسية', icon: 'fas fa-home', visible: true, order: 1 },
-                { id: 'haraj', label: 'حراج', icon: 'fas fa-car', visible: true, order: 2 },
-                { id: 'estate', label: 'عقار', icon: 'fas fa-building', visible: true, order: 3 },
-                { id: 'freelancer', label: 'فريلانسر', icon: 'fas fa-laptop-code', visible: true, order: 4 },
-                { id: 'jobs', label: 'وظائف', icon: 'fas fa-briefcase', visible: true, order: 5 }
-            ]);
+            return success(res, tabs.sort((a, b) => a.order - b.order));
         }
+        return success(res, [
+            { id: 'platform', label: 'الرئيسية', icon: 'fas fa-home', visible: true, order: 1 },
+            { id: 'haraj', label: 'حراج', icon: 'fas fa-car', visible: true, order: 2 },
+            { id: 'estate', label: 'عقار', icon: 'fas fa-building', visible: true, order: 3 },
+            { id: 'freelancer', label: 'فريلانسر', icon: 'fas fa-laptop-code', visible: true, order: 4 },
+            { id: 'jobs', label: 'وظائف', icon: 'fas fa-briefcase', visible: true, order: 5 }
+        ]);
     } catch (e) {
-        console.error("Tabs Read Error:", e);
-        // Fallback on Error
-        res.json([
+        logger.error("Tabs Read Error:", e);
+        return success(res, [
             { id: 'platform', label: 'الرئيسية', icon: 'fas fa-home', visible: true, order: 1 },
             { id: 'haraj', label: 'حراج', icon: 'fas fa-car', visible: true, order: 2 },
             { id: 'estate', label: 'عقار', icon: 'fas fa-building', visible: true, order: 3 },
@@ -50,17 +50,14 @@ router.get('/', async (req, res) => {
 // SAVE Tabs
 router.post('/', protect, admin, async (req, res) => {
     try {
-        const tabs = req.body; // Expects array of tabs
+        const tabs = req.body;
+        if (!Array.isArray(tabs)) return error(res, 'Tabs must be an array', 400);
         await fs.writeJson(CONFIG_PATH, tabs, { spaces: 4 });
-
-        // Also update routes.json if new tabs are added (Dynamic Route Injection)
-        // This is a simplified logic: We just ensure consistency if needed.
-        // For HTML tabs, we might need a generic page handler.
-
-        res.json({ success: true });
+        return success(res, { message: 'Tabs saved' });
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        return error(res, e.message);
     }
 });
 
 module.exports = router;
+

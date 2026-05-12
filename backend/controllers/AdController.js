@@ -1,7 +1,5 @@
 const Ad = require('../models/Ad');
-const fs = require('fs-extra');
-const path = require('path');
-const Validator = require('../utils/validator');
+const { success, error } = require('../utils/response');
 
 /**
  * @class AdController
@@ -42,9 +40,9 @@ class AdController {
             ]);
             res.set('X-Total-Count', total);
             res.set('X-Total-Pages', Math.ceil(total / lm));
-            res.json(ads);
+            return success(res, ads);
         } catch (e) {
-            res.status(500).json({ error: e.message });
+            return error(res, e.message);
         }
     }
 
@@ -62,15 +60,10 @@ class AdController {
                 data.imageUrl = fileUrls[0];
             }
 
-            const validation = Validator.validateAd(data);
-            if (!validation.isValid) {
-                return res.status(400).json({ error: validation.errors[0] });
-            }
-
             const newAd = await Ad.create(data);
-            res.status(201).json({ success: true, ad: newAd, message: 'تم نشر إعلانك بنجاح' });
+            return success(res, { ad: newAd, message: 'تم نشر إعلانك بنجاح' }, 201);
         } catch (e) {
-            res.status(500).json({ error: e.message });
+            return error(res, e.message);
         }
     }
 
@@ -80,15 +73,14 @@ class AdController {
     static async getOne(req, res) {
         try {
             const ad = await Ad.findById(req.params.id);
-            if (!ad) return res.status(404).json({ error: 'Ad not found' });
+            if (!ad) return error(res, 'Ad not found', 404);
 
-            // Increment Views (Side effect)
             ad.views += 1;
             await ad.save();
 
-            res.json(ad);
+            return success(res, ad);
         } catch (e) {
-            res.status(500).json({ error: e.message });
+            return error(res, e.message);
         }
     }
 
@@ -99,15 +91,15 @@ class AdController {
         try {
             const { status } = req.body;
             if (!['active', 'pending', 'rejected', 'deleted'].includes(status)) {
-                return res.status(400).json({ error: 'Invalid status' });
+                return error(res, 'Invalid status', 400);
             }
 
             const ad = await Ad.findByIdAndUpdate(req.params.id, { status }, { new: true });
-            if (!ad) return res.status(404).json({ error: 'Ad not found' });
+            if (!ad) return error(res, 'Ad not found', 404);
 
-            res.json({ success: true, ad });
+            return success(res, { ad });
         } catch (e) {
-            res.status(500).json({ error: e.message });
+            return error(res, e.message);
         }
     }
 
@@ -116,12 +108,11 @@ class AdController {
      */
     static async delete(req, res) {
         try {
-            // Soft delete
             const ad = await Ad.findByIdAndUpdate(req.params.id, { status: 'deleted' }, { new: true });
-            if (!ad) return res.status(404).json({ error: 'Ad not found' });
-            res.json({ success: true, message: 'Ad marked as deleted' });
+            if (!ad) return error(res, 'Ad not found', 404);
+            return success(res, { message: 'Ad marked as deleted' });
         } catch (e) {
-            res.status(500).json({ error: e.message });
+            return error(res, e.message);
         }
     }
 }

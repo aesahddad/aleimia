@@ -1,4 +1,4 @@
-const SystemSettings = require('../models/SystemSettings');
+﻿const SystemSettings = require('../models/SystemSettings');
 const User = require('../models/User');
 const Store = require('../models/Store');
 const Product = require('../models/Product');
@@ -30,7 +30,7 @@ class AdminController {
                 timestamp: new Date()
             });
         } catch (e) {
-            console.error('Admin Stats Error:', e);
+            logger.error('Admin Stats Error:', e);
             res.status(500).json({ error: 'فشل في استخراج إحصائيات النظام' });
         }
     }
@@ -111,3 +111,5 @@ class AdminController {
 }
 
 module.exports = AdminController;
+
+

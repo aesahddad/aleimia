@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import client from '../../api/client';
@@ -19,14 +19,14 @@ export default function SubscriptionPlans() {
   useEffect(() => {
     client.get('/subscriptions/plans')
       .then(r => setPlans(r.data))
-      .catch(() => {})
+      .catch(err => console.error('API error:', err))
       .finally(() => setLoading(false));
     client.get('/status')
       .then(r => {
         setAdminWhatsapp(r.data.adminWhatsapp || '');
         setAdminEmail(r.data.adminEmail || '');
       })
-      .catch(() => {});
+      .catch(err => console.error('API error:', err));
   }, []);
 
   const handleSelect = (plan) => {

@@ -1,52 +1,43 @@
-const bcrypt = require('bcryptjs');
+﻿const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken, JWT_SECRET } = require('../middleware/auth');
+const { success, error } = require('../utils/response');
 
 class AuthController {
     static async register(req, res) {
         try {
             const { username, email, password, role } = req.body;
 
-            if (!username || !email || !password) {
-                return res.status(400).json({ error: 'يرجى ملء جميع الحقول المطلوبة' });
-            }
-
             const userExists = await User.findOne({ email });
             if (userExists) {
-                return res.status(400).json({ error: 'هذا البريد الإلكتروني مسجل بالفعل' });
+                return error(res, 'هذا البريد الإلكتروني مسجل بالفعل', 400);
             }
 
             const newUser = await User.create({
-                username,
-                email,
-                password,
+                username, email, password,
                 role: role === 'admin' ? 'customer' : (role || 'customer')
             });
 
             const accessToken = generateAccessToken(newUser._id);
             const refreshToken = generateRefreshToken(newUser._id);
 
-            // Save refresh token to user document
             newUser.refreshTokens.push(refreshToken);
             await newUser.save();
 
-            res.status(201).json({
-                success: true,
+            return success(res, {
                 token: accessToken,
                 refreshToken,
                 user: {
-                    id: newUser._id,
-                    username: newUser.username,
-                    email: newUser.email,
-                    role: newUser.role,
+                    id: newUser._id, username: newUser.username,
+                    email: newUser.email, role: newUser.role,
                     permissions: newUser.permissions
                 }
-            });
-        } catch (error) {
-            console.error('Registration Error:', error);
-            res.status(500).json({ error: 'حدث خطأ أثناء إنشاء الحساب' });
+            }, 201);
+        } catch (err) {
+            logger.error('Registration Error:', err);
+            return error(res, 'حدث خطأ أثناء إنشاء الحساب');
         }
     }
 
@@ -55,57 +46,43 @@ class AuthController {
             const { email, password } = req.body;
 
             const user = await User.findOne({ email });
-            if (!user) {
-                return res.status(401).json({ error: 'بيانات الاعتماد غير صالحة' });
-            }
+            if (!user) return error(res, 'بيانات الاعتماد غير صالحة', 401);
 
             const isMatch = await user.matchPassword(password);
-            if (!isMatch) {
-                return res.status(401).json({ error: 'بيانات الاعتماد غير صالحة' });
-            }
+            if (!isMatch) return error(res, 'بيانات الاعتماد غير صالحة', 401);
 
             const accessToken = generateAccessToken(user._id);
             const refreshToken = generateRefreshToken(user._id);
 
-            // "Architecture Hardening": Save refresh token for validation
             user.refreshTokens.push(refreshToken);
-            // Limit stored tokens to 5 (prevents bloat)
             if (user.refreshTokens.length > 5) user.refreshTokens.shift();
             await user.save();
 
-            res.json({
-                success: true,
-                token: accessToken,
-                refreshToken,
+            return success(res, {
+                token: accessToken, refreshToken,
                 user: {
-                    id: user._id,
-                    username: user.username,
-                    email: user.email,
-                    role: user.role,
+                    id: user._id, username: user.username,
+                    email: user.email, role: user.role,
                     permissions: user.permissions
                 }
             });
-        } catch (error) {
-            console.error('Login Error:', error);
-            res.status(500).json({ error: 'حدث خطأ أثناء تسجيل الدخول' });
+        } catch (err) {
+            logger.error('Login Error:', err);
+            return error(res, 'حدث خطأ أثناء تسجيل الدخول');
         }
     }
 
     static async refresh(req, res) {
         try {
             const { refreshToken } = req.body;
-            if (!refreshToken) {
-                return res.status(400).json({ error: 'Refresh token required' });
-            }
 
             const decoded = verifyRefreshToken(refreshToken);
             const user = await User.findById(decoded.id);
             
             if (!user || !user.refreshTokens.includes(refreshToken)) {
-                return res.status(401).json({ error: 'Invalid or expired refresh token' });
+                return error(res, 'Invalid or expired refresh token', 401);
             }
 
-            // Remove old token and issue a new one (Token Rotation)
             user.refreshTokens = user.refreshTokens.filter(t => t !== refreshToken);
             
             const newAccessToken = generateAccessToken(user._id);
@@ -114,13 +91,9 @@ class AuthController {
             user.refreshTokens.push(newRefreshToken);
             await user.save();
 
-            res.json({
-                success: true,
-                token: newAccessToken,
-                refreshToken: newRefreshToken
-            });
-        } catch (error) {
-            res.status(401).json({ error: 'Invalid or expired refresh token' });
+            return success(res, { token: newAccessToken, refreshToken: newRefreshToken });
+        } catch (err) {
+            return error(res, 'Invalid or expired refresh token', 401);
         }
     }
 
@@ -129,7 +102,7 @@ class AuthController {
             const { refreshToken } = req.body;
             if (refreshToken) {
                 const decoded = jwt.decode(refreshToken);
-                if (decoded && decoded.id) {
+                if (decoded?.id) {
                     const user = await User.findById(decoded.id);
                     if (user) {
                         user.refreshTokens = user.refreshTokens.filter(t => t !== refreshToken);
@@ -137,56 +110,51 @@ class AuthController {
                     }
                 }
             }
-            res.json({ success: true, message: 'Logged out successfully' });
+            return success(res, { message: 'Logged out successfully' });
         } catch (e) {
-            res.status(500).json({ error: 'Logout failed' });
+            return error(res, 'Logout failed');
         }
     }
 
     static async forgotPassword(req, res) {
         try {
             const { email } = req.body;
-            if (!email) return res.status(400).json({ error: 'البريد الإلكتروني مطلوب' });
 
             const user = await User.findOne({ email });
-            if (!user) return res.status(404).json({ error: 'لا يوجد حساب بهذا البريد' });
+            if (!user) return error(res, 'لا يوجد حساب بهذا البريد', 404);
 
             const resetToken = jwt.sign({ id: user._id, type: 'reset' }, JWT_SECRET, { expiresIn: '1h' });
             user.resetPasswordToken = resetToken;
             user.resetPasswordExpire = Date.now() + 3600000;
             await user.save();
 
-            const MailService = require('../services/MailService');
             try {
+                const MailService = require('../services/MailService');
                 await MailService.sendPasswordReset(email, resetToken);
             } catch (mailErr) {
-                console.error('Failed to send email:', mailErr);
+                logger.error('Failed to send email:', mailErr);
             }
 
-            res.json({
-                success: true,
-                message: 'تم إرسال رابط إعادة تعيين كلمة المرورة إلى بريدك الإلكتروني'
-            });
-        } catch (error) {
-            res.status(500).json({ error: 'حدث خطأ أثناء طلب إعادة التعيين' });
+            return success(res, { message: 'تم إرسال رابط إعادة تعيين كلمة المرورة إلى بريدك الإلكتروني' });
+        } catch (err) {
+            return error(res, 'حدث خطأ أثناء طلب إعادة التعيين');
         }
     }
 
     static async resetPassword(req, res) {
         try {
             const { token, password } = req.body;
-            if (!token || !password) return res.status(400).json({ error: 'الرمز وكلمة المرور مطلوبان' });
 
             let decoded;
             try {
                 decoded = jwt.verify(token, JWT_SECRET);
             } catch {
-                return res.status(400).json({ error: 'الرمز غير صالح أو منتهي الصلاحية' });
+                return error(res, 'الرمز غير صالح أو منتهي الصلاحية', 400);
             }
 
             const user = await User.findById(decoded.id);
             if (!user || user.resetPasswordToken !== token) {
-                return res.status(400).json({ error: 'الرمز غير صالح' });
+                return error(res, 'الرمز غير صالح', 400);
             }
 
             user.password = password;
@@ -194,9 +162,9 @@ class AuthController {
             user.resetPasswordExpire = undefined;
             await user.save();
 
-            res.json({ success: true, message: 'تم إعادة تعيين كلمة المرور بنجاح' });
-        } catch (error) {
-            res.status(500).json({ error: 'حدث خطأ أثناء إعادة التعيين' });
+            return success(res, { message: 'تم إعادة تعيين كلمة المرور بنجاح' });
+        } catch (err) {
+            return error(res, 'حدث خطأ أثناء إعادة التعيين');
         }
     }
 }

@@ -22,7 +22,7 @@ export default function StoreView() {
   const [modalImages, setModalImages] = useState(null);
   const [sidebarVisible, setSidebarVisible] = useState(window.innerWidth >= 768);
   const [editProduct, setEditProduct] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', price: '', description: '', galleryImages: [] });
+  const [editForm, setEditForm] = useState({ name: '', price: '', description: '', videoUrl: '', galleryImages: [] });
   const [viewMode, setViewMode] = useState('products');
 
   const loadProducts = useCallback(() => {
@@ -90,7 +90,7 @@ export default function StoreView() {
   };
 
   const openEditModal = (product) => {
-    setEditForm({ name: product.name || '', price: product.price || '', description: product.description || '', galleryImages: [...(product.galleryImages || [])] });
+    setEditForm({ name: product.name || '', price: product.price || '', description: product.description || '', videoUrl: product.videoUrl || '', galleryImages: [...(product.galleryImages || [])] });
     setEditProduct(product);
   };
 
@@ -101,6 +101,7 @@ export default function StoreView() {
         name: editForm.name,
         price: Number(editForm.price),
         description: editForm.description,
+        videoUrl: editForm.videoUrl,
         galleryImages: editForm.galleryImages
       });
       setEditProduct(null);
@@ -252,6 +253,10 @@ export default function StoreView() {
             <div className="admin-field">
               <label>الوصف</label>
               <textarea value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} rows={2} className="admin-textarea" />
+            </div>
+            <div className="admin-field">
+              <label>رابط الفيديو (YouTube)</label>
+              <input value={editForm.videoUrl} onChange={e => setEditForm(f => ({ ...f, videoUrl: e.target.value }))} placeholder="https://youtube.com/..." className="admin-input" />
             </div>
             <div className="admin-field">
               <label>صور المنتج</label>

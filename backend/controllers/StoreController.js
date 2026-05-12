@@ -1,6 +1,6 @@
-const Store = require('../models/Store');
+﻿const Store = require('../models/Store');
 const Product = require('../models/Product');
-const Validator = require('../utils/validator');
+const { success, error } = require('../utils/response');
 
 /**
  * @class StoreController
@@ -51,9 +51,9 @@ class StoreController {
 
             res.set('X-Total-Count', total);
             res.set('X-Total-Pages', Math.ceil(total / lm));
-            res.json(stores);
+            return success(res, stores);
         } catch (e) {
-            res.status(500).json({ error: e.message });
+            return error(res, e.message);
         }
     }
 
@@ -81,11 +81,6 @@ class StoreController {
             }
             if (!data.imageUrl && data.logoUrl) data.imageUrl = data.logoUrl;
 
-            const validation = Validator.validateStore(data);
-            if (!validation.isValid) {
-                return res.status(400).json({ error: validation.errors[0] });
-            }
-
             // Generate Slug
             let slug = data.name.toLowerCase().trim()
                 .replace(/[^\w\s-]/g, '')
@@ -95,9 +90,9 @@ class StoreController {
             data.slug = slug;
 
             const newStore = await Store.create(data);
-            res.status(201).json({ success: true, store: newStore });
+            return success(res, { store: newStore }, 201);
         } catch (e) {
-            res.status(500).json({ error: e.message });
+            return error(res, e.message);
         }
     }
 
@@ -109,10 +104,10 @@ class StoreController {
             const { id } = req.params;
             let store = id.match(/^[0-9a-fA-F]{24}$/) ? await Store.findById(id).populate('members', 'username email') : await Store.findOne({ slug: id }).populate('members', 'username email');
             
-            if (!store) return res.status(404).json({ error: 'Store not found' });
-            res.json(store);
+            if (!store) return error(res, 'Store not found', 404);
+            return success(res, store);
         } catch (e) {
-            res.status(500).json({ error: e.message });
+            return error(res, e.message);
         }
     }
 
@@ -122,9 +117,9 @@ class StoreController {
     static async update(req, res) {
         try {
             const store = await Store.findById(req.params.id);
-            if (!store) return res.status(404).json({ error: 'Store not found' });
+            if (!store) return error(res, 'Store not found', 404);
             if (store.ownerId?.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-                return res.status(403).json({ error: 'غير مصرح لك بتعديل هذا المتجر' });
+                return error(res, 'غير مصرح لك بتعديل هذا المتجر', 403);
             }
             const allowed = ['name', 'category', 'description', 'imageUrl', 'theme', 'branding', 'whatsapp', 'financial', 'logoUrl', 'coverUrl', 'whatsappNumber', 'websiteUrl', 'aboutUs'];
             const update = {};
@@ -154,9 +149,9 @@ class StoreController {
 
             Object.assign(store, update);
             await store.save();
-            res.json({ success: true, store });
+            return success(res, { store });
         } catch (e) {
-            res.status(500).json({ error: e.message });
+            return error(res, e.message);
         }
     }
 
@@ -166,16 +161,16 @@ class StoreController {
     static async updateStatus(req, res) {
         try {
             const { status } = req.body;
-            if (!['active', 'frozen', 'deleted'].includes(status)) {
-                return res.status(400).json({ error: 'Invalid status' });
+            if (!['active', 'pending', 'frozen', 'deleted'].includes(status)) {
+                return error(res, 'Invalid status', 400);
             }
 
             const store = await Store.findByIdAndUpdate(req.params.id, { status }, { new: true });
-            if (!store) return res.status(404).json({ error: 'Store not found' });
+            if (!store) return error(res, 'Store not found', 404);
             
-            res.json({ success: true, store });
+            return success(res, { store });
         } catch (e) {
-            res.status(500).json({ error: e.message });
+            return error(res, e.message);
         }
     }
 
@@ -186,10 +181,10 @@ class StoreController {
         try {
             // Soft delete
             const store = await Store.findByIdAndUpdate(req.params.id, { status: 'deleted' }, { new: true });
-            if (!store) return res.status(404).json({ error: 'Store not found' });
-            res.json({ success: true, message: 'Store marked as deleted' });
+            if (!store) return error(res, 'Store not found', 404);
+            return success(res, { message: 'Store marked as deleted' });
         } catch (e) {
-            res.status(500).json({ error: e.message });
+            return error(res, e.message);
         }
     }
 }

@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
-import { MERCHANT_TABS } from '../pages/Merchant';
+import { MERCHANT_TABS } from '../../config/merchantTabs';
 import { AD_CATEGORIES } from '../../features/ads/config';
 import AdCard from '../../features/ads/AdCard';
 import client, { submitReview } from '../../api/client';
+
+import { extractYoutubeId, getYoutubeEmbedUrl } from '../../utils/video';
 
 const PAGE_LINKS = {
   '/': [
@@ -134,17 +136,11 @@ export default function Sidebar({ store, product, products, onSelectProduct, onA
               </div>
             )}
 
-          {product.videoUrl && (
+          {product.videoUrl && (product.videoUrl.includes('youtube') || product.videoUrl.includes('youtu.be')) && (
             <div className="sidebar-section">
               <div className="sidebar-video">
-                {product.videoUrl.includes('youtube') || product.videoUrl.includes('youtu.be') ? (
-                  <>
-                    <iframe key={product._id} src={`https://www.youtube-nocookie.com/embed/${extractYoutubeId(product.videoUrl)}`} allowFullScreen title="product video" />
-                    <a href={product.videoUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block', textAlign: 'center', marginTop: 8, fontSize: 12, color: 'var(--accent)' }}>▶️ مشاهدة على YouTube</a>
-                  </>
-                ) : (
-                  <video key={product._id} controls><source src={product.videoUrl} /></video>
-                )}
+                <iframe key={product._id} src={getYoutubeEmbedUrl(product.videoUrl)} allowFullScreen title="فيديو المنتج" />
+                <a href={product.videoUrl} target="_blank" rel="noopener noreferrer" className="sidebar-video-link">▶️ يوتيوب</a>
               </div>
             </div>
           )}
@@ -243,18 +239,9 @@ export default function Sidebar({ store, product, products, onSelectProduct, onA
           </div>
 
           <div className="sidebar-section sidebar-promo-video">
-            {settings?.promoVideoUrl ? (
-              settings.promoVideoUrl.includes('youtube') || settings.promoVideoUrl.includes('youtu.be') ? (
-                <iframe src={`https://www.youtube-nocookie.com/embed/${extractYoutubeId(settings.promoVideoUrl)}`} allowFullScreen title="فيديو ترويجي" />
-              ) : (
-                <video controls playsInline><source src={settings.promoVideoUrl} /></video>
-              )
-            ) : (
-              <div className="sidebar-promo-placeholder">
-                <span>📹</span>
-                <p>مساحة الفيديو الدعائي<br /><small>يمكنك التحكم به من لوحة الإدارة</small></p>
-              </div>
-            )}
+            {settings?.promoVideoUrl && (settings.promoVideoUrl.includes('youtube') || settings.promoVideoUrl.includes('youtu.be')) ? (
+              <iframe src={getYoutubeEmbedUrl(settings.promoVideoUrl)} allowFullScreen title="فيديو ترويجي" />
+            ) : null}
           </div>
 
           <div className="sidebar-section">
@@ -318,18 +305,9 @@ export default function Sidebar({ store, product, products, onSelectProduct, onA
           </div>
 
           <div className="sidebar-section sidebar-promo-video">
-            {settings?.promoVideoPlansUrl ? (
-              settings.promoVideoPlansUrl.includes('youtube') || settings.promoVideoPlansUrl.includes('youtu.be') ? (
-                <iframe src={`https://www.youtube-nocookie.com/embed/${extractYoutubeId(settings.promoVideoPlansUrl)}`} allowFullScreen title="فيديو الاشتراكات" />
-              ) : (
-                <video controls playsInline><source src={settings.promoVideoPlansUrl} /></video>
-              )
-            ) : (
-              <div className="sidebar-promo-placeholder">
-                <span>📹</span>
-                <p>مساحة الفيديو الدعائي<br /><small>يمكنك التحكم به من لوحة الإدارة</small></p>
-              </div>
-            )}
+            {settings?.promoVideoPlansUrl && (settings.promoVideoPlansUrl.includes('youtube') || settings.promoVideoPlansUrl.includes('youtu.be')) ? (
+              <iframe src={getYoutubeEmbedUrl(settings.promoVideoPlansUrl)} allowFullScreen title="فيديو الاشتراكات" />
+            ) : null}
           </div>
 
           {info && (
@@ -430,18 +408,9 @@ export default function Sidebar({ store, product, products, onSelectProduct, onA
           </div>
 
           <div className="sidebar-section sidebar-promo-video">
-            {settings?.promoVideoUrl ? (
-              settings.promoVideoUrl.includes('youtube') || settings.promoVideoUrl.includes('youtu.be') ? (
-                <iframe src={`https://www.youtube-nocookie.com/embed/${extractYoutubeId(settings.promoVideoUrl)}`} allowFullScreen title="فيديو ترويجي" />
-              ) : (
-                <video controls playsInline><source src={settings.promoVideoUrl} /></video>
-              )
-            ) : (
-              <div className="sidebar-promo-placeholder">
-                <span>📹</span>
-                <p>مساحة الفيديو الدعائي<br /><small>يمكنك التحكم به من لوحة الإدارة</small></p>
-              </div>
-            )}
+            {settings?.promoVideoUrl && (settings.promoVideoUrl.includes('youtube') || settings.promoVideoUrl.includes('youtu.be')) ? (
+              <iframe src={getYoutubeEmbedUrl(settings.promoVideoUrl)} allowFullScreen title="فيديو ترويجي" />
+            ) : null}
           </div>
 
           <div className="sidebar-section sidebar-education">
@@ -604,12 +573,4 @@ export default function Sidebar({ store, product, products, onSelectProduct, onA
       </div>
     </aside>
   );
-}
-
-function extractYoutubeId(url) {
-  if (url.includes('youtu.be/')) return url.split('youtu.be/')[1]?.split('?')[0];
-  if (url.includes('shorts/')) return url.split('shorts/')[1]?.split('?')[0];
-  if (url.includes('watch?v=')) return url.split('watch?v=')[1]?.split('&')[0];
-  if (url.includes('embed/')) return url.split('embed/')[1]?.split('?')[0];
-  return '';
 }

@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const AdminController = require('../controllers/AdminController');
 const { protect, admin, hasPerm } = require('../middleware/auth');
+const { success, error } = require('../utils/response');
+const { validate, settingsUpdateSchema } = require('../middleware/validator');
 const Order = require('../models/Order');
 const logger = require('../shared/logger');
 
@@ -10,7 +12,7 @@ router.use(protect);
 
 router.get('/stats', hasPerm('dashboard.view'), (req, res) => AdminController.getStats(req, res));
 router.get('/settings', hasPerm('settings.view'), (req, res) => AdminController.getSettings(req, res));
-router.put('/settings', hasPerm('settings.manage'), (req, res) => AdminController.updateSettings(req, res));
+router.put('/settings', hasPerm('settings.manage'), validate(settingsUpdateSchema), (req, res) => AdminController.updateSettings(req, res));
 router.post('/register-partner-supplier', hasPerm('settings.manage'), (req, res) => AdminController.registerPartnerSupplier(req, res));
 
 router.get('/reviews', hasPerm('reviews.manage'), async (req, res) => {
@@ -20,22 +22,17 @@ router.get('/reviews', hasPerm('reviews.manage'), async (req, res) => {
         products.forEach(product => {
             product.reviews.forEach(r => {
                 reviews.push({
-                    _id: r._id,
-                    user: r.user,
-                    rating: r.rating,
-                    comment: r.comment,
-                    date: r.date,
-                    productId: product._id,
-                    productName: product.name,
-                    storeId: product.storeId?._id,
-                    storeName: product.storeId?.name || 'غير معروف'
+                    _id: r._id, user: r.user, rating: r.rating,
+                    comment: r.comment, date: r.date,
+                    productId: product._id, productName: product.name,
+                    storeId: product.storeId?._id, storeName: product.storeId?.name || 'غير معروف'
                 });
             });
         });
         reviews.sort((a, b) => new Date(b.date) - new Date(a.date));
-        res.json(reviews);
+        return success(res, reviews);
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        return error(res, e.message);
     }
 });
 
@@ -52,9 +49,9 @@ router.get('/orders', hasPerm('subscriptions.view'), async (req, res) => {
             Order.countDocuments(query)
         ]);
         res.set('X-Total-Count', total);
-        res.json(orders);
+        return success(res, orders);
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        return error(res, e.message);
     }
 });
 
@@ -62,13 +59,13 @@ router.put('/orders/:id/status', hasPerm('subscriptions.manage'), async (req, re
     try {
         const { status } = req.body;
         if (!['pending', 'paid', 'failed', 'cancelled'].includes(status)) {
-            return res.status(400).json({ error: 'Invalid status' });
+            return error(res, 'Invalid status', 400);
         }
         const order = await Order.findByIdAndUpdate(req.params.id, { status }, { new: true });
-        if (!order) return res.status(404).json({ error: 'Order not found' });
-        res.json({ success: true, order });
+        if (!order) return error(res, 'Order not found', 404);
+        return success(res, { order });
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        return error(res, e.message);
     }
 });
 
@@ -78,7 +75,7 @@ router.post('/payments/check/:ref', hasPerm('subscriptions.view'), async (req, r
         const SystemSettings = require('../models/SystemSettings');
         const settings = await SystemSettings.findById('global_settings');
         if (!settings?.enablePaymentGateway || !settings?.myfatoorah?.apiKey) {
-            return res.status(400).json({ error: 'بوابة الدفع غير مفعلة' });
+            return error(res, 'بوابة الدفع غير مفعلة', 400);
         }
         const baseUrl = settings.myfatoorah.mode === 'live' ? 'https://api.myfatoorah.com' : 'https://apitest.myfatoorah.com';
         const mfRes = await fetch(`${baseUrl}/v2/GetPaymentStatus`, {
@@ -87,10 +84,10 @@ router.post('/payments/check/:ref', hasPerm('subscriptions.view'), async (req, r
             body: JSON.stringify({ Key: req.params.ref, KeyType: 'InvoiceId' })
         });
         const mfData = await mfRes.json();
-        res.json(mfData);
+        return success(res, mfData);
     } catch (e) {
         logger.error('Payment Status Check Error:', e);
-        res.status(500).json({ error: e.message });
+        return error(res, e.message);
     }
 });
 
@@ -101,10 +98,10 @@ router.delete('/reviews/:productId/:reviewId', hasPerm('reviews.delete'), async 
             { $pull: { reviews: { _id: req.params.reviewId } } },
             { new: true }
         );
-        if (!product) return res.status(404).json({ error: 'المنتج غير موجود' });
-        res.json({ success: true, message: 'تم حذف التقييم' });
+        if (!product) return error(res, 'المنتج غير موجود', 404);
+        return success(res, { message: 'تم حذف التقييم' });
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        return error(res, e.message);
     }
 });
 

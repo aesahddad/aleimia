@@ -1,17 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import client from '../../api/client';
-
-let socket = null;
-
-function getSocket() {
-  if (!socket) {
-    socket = new WebSocket('ws://localhost:3001');
-    // We use Socket.IO via the global io if available
-    // Fallback: try to connect via the server's socket.io client
-  }
-  return socket;
-}
 
 export default function ChatBox({ adId, onClose }) {
   const { user } = useAuth();
@@ -27,7 +16,7 @@ export default function ChatBox({ adId, onClose }) {
 
     // Load message history
     if (user) {
-      client.get(`/chat/${adId}`).then(r => setMessages(r.data)).catch(() => {});
+      client.get(`/chat/${adId}`).then(r => setMessages(r.data)).catch(err => console.error('Failed to load messages:', err));
     }
 
     // Connect Socket.IO
@@ -131,3 +120,5 @@ export default function ChatBox({ adId, onClose }) {
     </div>
   );
 }
+
+

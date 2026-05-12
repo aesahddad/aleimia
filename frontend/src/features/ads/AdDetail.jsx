@@ -2,6 +2,7 @@ import { useState } from 'react';
 import ImageModal from '../../components/layout/ImageModal';
 import ChatBox from '../chat/ChatBox';
 import { openWhatsApp } from '../../utils/whatsapp';
+import { getYoutubeEmbedUrl } from '../../utils/video';
 
 export default function AdDetail({ ad, onBack }) {
   const [showModal, setShowModal] = useState(false);
@@ -69,12 +70,9 @@ export default function AdDetail({ ad, onBack }) {
         {ad.videoUrl && (
           <div className="ad-detail-video">
             {ad.videoUrl.includes('youtube') || ad.videoUrl.includes('youtu.be') ? (
-              <>
-                <iframe key={ad._id} src={`https://www.youtube-nocookie.com/embed/${extractYoutubeId(ad.videoUrl)}`} allowFullScreen title="ad video" />
-                <a href={ad.videoUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block', textAlign: 'center', marginTop: 8, fontSize: 12, color: 'var(--accent)' }}>▶️ مشاهدة على YouTube</a>
-              </>
+              <iframe src={getYoutubeEmbedUrl(ad.videoUrl)} allowFullScreen title="ad video" />
             ) : (
-              <video key={ad._id} controls><source src={ad.videoUrl} /></video>
+              <video controls><source src={ad.videoUrl} /></video>
             )}
           </div>
         )}
@@ -95,12 +93,4 @@ export default function AdDetail({ ad, onBack }) {
       )}
     </div>
   );
-}
-
-function extractYoutubeId(url) {
-  if (url.includes('youtu.be/')) return url.split('youtu.be/')[1]?.split('?')[0];
-  if (url.includes('shorts/')) return url.split('shorts/')[1]?.split('?')[0];
-  if (url.includes('watch?v=')) return url.split('watch?v=')[1]?.split('&')[0];
-  if (url.includes('embed/')) return url.split('embed/')[1]?.split('?')[0];
-  return '';
 }

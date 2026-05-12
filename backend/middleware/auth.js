@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+﻿const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -17,7 +17,7 @@ const protect = async (req, res, next) => {
             req.user = await User.findById(decoded.id).select('-password');
             next();
         } catch (error) {
-            console.error(error);
+            logger.error(error);
             return res.status(401).json({ error: 'Not authorized, token failed' });
         }
         return;
@@ -54,3 +54,4 @@ const verifyRefreshToken = (token) => {
 };
 
 module.exports = { protect, admin, hasPerm, JWT_SECRET, JWT_REFRESH_SECRET, generateAccessToken, generateRefreshToken, verifyRefreshToken };
+

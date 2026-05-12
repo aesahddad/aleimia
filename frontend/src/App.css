@@ -1,4 +1,4 @@
-/* ========================================================
+﻿/* ========================================================
    Aleinia React - Full RTL Neumorphism Design
    ======================================================== */
 
@@ -237,6 +237,9 @@ body {
 .sidebar-overlay {
   display: none;
 }
+.sidebar-overlay.open {
+  display: block;
+}
 .sidebar-mobile-close {
   background: none; border: none; font-size: 18px; cursor: pointer;
   color: var(--text-light); padding: 4px 8px; border-radius: 50%;
@@ -277,9 +280,6 @@ body {
   flex-direction: column;
   gap: 12px;
   min-height: 0;
-}
-  flex-direction: column;
-  gap: 12px;
 }
 
 .sidebar-section {
@@ -326,7 +326,11 @@ body {
 .sidebar-video {
   border-radius: var(--radius-sm); overflow: hidden; margin: 8px 0;
 }
-.sidebar-video iframe, .sidebar-video video { width: 100%; aspect-ratio: 9/16; border: none; }
+.sidebar-video iframe { width: 100%; aspect-ratio: 16 / 9; border: none; }
+.sidebar-video-link {
+  display: block; text-align: center; padding: 4px; font-size: 11px;
+  color: var(--accent); background: rgba(255,255,255,0.9); text-decoration: none;
+}
 
 .sidebar-section-title {
   font-size: 12px; font-weight: 900; color: var(--text-light);
@@ -1350,8 +1354,11 @@ body {
     background: var(--bg);
   }
   .sidebar-overlay {
-    display: none;
-  }
+  display: none;
+}
+.sidebar-overlay.open {
+  display: block;
+}
   .sidebar-mobile-tab:active { opacity: 1; }
   .sidebar-mobile-close { display: block; }
   .mobile-sidebar-toggle { display: flex; }
@@ -1365,3 +1372,4 @@ body {
   .ad-grid { grid-template-columns: 1fr 1fr; }
   .ad-form-row { flex-direction: column; }
 }
+

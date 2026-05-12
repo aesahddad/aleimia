@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import client from '../../api/client';
@@ -99,7 +99,7 @@ function StatsSection() {
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
-    client.get('/admin/stats').then(r => setStats(r.data)).catch(() => {});
+    client.get('/admin/stats').then(r => setStats(r.data)).catch(err => console.error('API error:', err));
   }, []);
 
   if (!stats) return <div className="home-loading">جاري التحميل...</div>;
@@ -129,7 +129,7 @@ function TabsSection() {
   const [editTab, setEditTab] = useState(null);
 
   useEffect(() => {
-    client.get('/tabs').then(r => setTabs(r.data)).catch(() => {});
+    client.get('/tabs').then(r => setTabs(r.data)).catch(err => console.error('API error:', err));
   }, []);
 
   const saveTabs = async (newTabs) => {
@@ -243,7 +243,7 @@ function StoresSection() {
     client.get('/stores?admin=true&limit=100').then(({ data }) => {
       setStores(data);
       if (linkStore) setLinkStore(data.find(s => s._id === linkStore._id) || linkStore);
-    }).catch(() => {});
+    }).catch(err => console.error('API error:', err));
   };
 
   useEffect(() => { loadStores(); }, []);
@@ -478,7 +478,7 @@ function AdsSection() {
   const [ads, setAds] = useState([]);
 
   useEffect(() => {
-    client.get('/ads?admin=true&limit=100').then(r => setAds(r.data)).catch(() => {});
+    client.get('/ads?admin=true&limit=100').then(r => setAds(r.data)).catch(err => console.error('API error:', err));
   }, []);
 
   const updateAdStatus = async (id, status) => {
@@ -823,7 +823,7 @@ function SettingsSection() {
   const [partnerRegistering, setPartnerRegistering] = useState(false);
 
   useEffect(() => {
-    client.get('/admin/settings').then(r => { setSettings(r.data); setDraft(r.data); }).catch(() => {});
+    client.get('/admin/settings').then(r => { setSettings(r.data); setDraft(r.data); }).catch(err => console.error('API error:', err));
   }, []);
 
   const updateDraft = (key, value) => {
@@ -1102,7 +1102,7 @@ function SubscriptionsSection() {
   useEffect(() => {
     client.get('/subscriptions/admin/plans')
       .then(r => setPlans(r.data))
-      .catch(() => {})
+      .catch(err => console.error('API error:', err))
       .finally(() => setLoading(false));
   }, []);
 
@@ -1362,7 +1362,7 @@ function OrdersSection() {
     setLoading(true);
     client.get('/admin/orders', { params: { status: filterStatus !== 'all' ? filterStatus : undefined } })
       .then(r => setOrders(r.data))
-      .catch(() => {})
+      .catch(err => console.error('API error:', err))
       .finally(() => setLoading(false));
   };
 
@@ -1505,7 +1505,7 @@ function RolesSection() {
   const [users, setUsers] = useState([]);
 
   useEffect(() => {
-    client.get('/users').then(r => setUsers(r.data)).catch(() => {});
+    client.get('/users').then(r => setUsers(r.data)).catch(err => console.error('API error:', err));
   }, []);
 
   const updatePermissions = async (userId, group, permKey, value) => {

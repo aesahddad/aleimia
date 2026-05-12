@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+﻿const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const SystemSettings = require('../models/SystemSettings');
 const { JWT_SECRET } = require('./auth'); // Ensure we import the secret
@@ -49,7 +49,7 @@ const checkMaintenance = async (req, res, next) => {
         });
 
     } catch (e) {
-        console.error('Maintenance Check Error:', e);
+        logger.error('Maintenance Check Error:', e);
         // Fail Safe: If DB error, maybe allow? Or block?
         // Let's block to be safe if we can't determine state, but usually pass to avoid total outage.
         // Actually, strictly speaking, next() is safer for uptime, but 503 is safer for data integrity.
@@ -59,3 +59,4 @@ const checkMaintenance = async (req, res, next) => {
 };
 
 module.exports = checkMaintenance;
+
