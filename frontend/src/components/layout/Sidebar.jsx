@@ -7,7 +7,7 @@ import { AD_CATEGORIES } from '../../features/ads/config';
 import AdCard from '../../features/ads/AdCard';
 import client, { submitReview } from '../../api/client';
 
-import { extractYoutubeId, getYoutubeEmbedUrl } from '../../utils/video';
+import { getYoutubeEmbedUrl, isMp4Url } from '../../utils/video';
 
 const PAGE_LINKS = {
   '/': [
@@ -136,11 +136,19 @@ export default function Sidebar({ store, product, products, onSelectProduct, onA
               </div>
             )}
 
-          {product.videoUrl && (product.videoUrl.includes('youtube') || product.videoUrl.includes('youtu.be')) && (
+          {product.videoUrl && (
             <div className="sidebar-section">
               <div className="sidebar-video">
-                <iframe key={product._id} src={getYoutubeEmbedUrl(product.videoUrl)} allowFullScreen title="فيديو المنتج" />
-                <a href={product.videoUrl} target="_blank" rel="noopener noreferrer" className="sidebar-video-link">▶️ يوتيوب</a>
+                {isMp4Url(product.videoUrl) ? (
+                  <video key={product._id} controls preload="metadata">
+                    <source src={product.videoUrl} type="video/mp4" />
+                  </video>
+                ) : (
+                  <>
+                    <iframe key={product._id} src={getYoutubeEmbedUrl(product.videoUrl)} allowFullScreen title="فيديو المنتج" />
+                    <a href={product.videoUrl} target="_blank" rel="noopener noreferrer" className="sidebar-video-link">▶️ يوتيوب</a>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -239,8 +247,14 @@ export default function Sidebar({ store, product, products, onSelectProduct, onA
           </div>
 
           <div className="sidebar-section sidebar-promo-video">
-            {settings?.promoVideoUrl && (settings.promoVideoUrl.includes('youtube') || settings.promoVideoUrl.includes('youtu.be')) ? (
-              <iframe src={getYoutubeEmbedUrl(settings.promoVideoUrl)} allowFullScreen title="فيديو ترويجي" />
+            {settings?.promoVideoUrl ? (
+              isMp4Url(settings.promoVideoUrl) ? (
+                <video controls preload="metadata">
+                  <source src={settings.promoVideoUrl} type="video/mp4" />
+                </video>
+              ) : (
+                <iframe src={getYoutubeEmbedUrl(settings.promoVideoUrl)} allowFullScreen title="فيديو ترويجي" />
+              )
             ) : null}
           </div>
 
@@ -305,8 +319,14 @@ export default function Sidebar({ store, product, products, onSelectProduct, onA
           </div>
 
           <div className="sidebar-section sidebar-promo-video">
-            {settings?.promoVideoPlansUrl && (settings.promoVideoPlansUrl.includes('youtube') || settings.promoVideoPlansUrl.includes('youtu.be')) ? (
-              <iframe src={getYoutubeEmbedUrl(settings.promoVideoPlansUrl)} allowFullScreen title="فيديو الاشتراكات" />
+            {settings?.promoVideoPlansUrl ? (
+              isMp4Url(settings.promoVideoPlansUrl) ? (
+                <video controls preload="metadata">
+                  <source src={settings.promoVideoPlansUrl} type="video/mp4" />
+                </video>
+              ) : (
+                <iframe src={getYoutubeEmbedUrl(settings.promoVideoPlansUrl)} allowFullScreen title="فيديو الاشتراكات" />
+              )
             ) : null}
           </div>
 
@@ -408,8 +428,14 @@ export default function Sidebar({ store, product, products, onSelectProduct, onA
           </div>
 
           <div className="sidebar-section sidebar-promo-video">
-            {settings?.promoVideoUrl && (settings.promoVideoUrl.includes('youtube') || settings.promoVideoUrl.includes('youtu.be')) ? (
-              <iframe src={getYoutubeEmbedUrl(settings.promoVideoUrl)} allowFullScreen title="فيديو ترويجي" />
+            {settings?.promoVideoUrl ? (
+              isMp4Url(settings.promoVideoUrl) ? (
+                <video controls preload="metadata">
+                  <source src={settings.promoVideoUrl} type="video/mp4" />
+                </video>
+              ) : (
+                <iframe src={getYoutubeEmbedUrl(settings.promoVideoUrl)} allowFullScreen title="فيديو ترويجي" />
+              )
             ) : null}
           </div>
 

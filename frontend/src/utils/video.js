@@ -28,3 +28,13 @@ export function getYoutubeEmbedUrl(url) {
   if (!id) return null;
   return `https://www.youtube-nocookie.com/embed/${id}?rel=0`;
 }
+
+/**
+ * Returns true if the URL points to an MP4 video file.
+ * @param {string} url 
+ * @returns {boolean}
+ */
+export function isMp4Url(url) {
+  if (!url) return false;
+  return url.match(/\.mp4(\?|#|$)/i) !== null;
+}
